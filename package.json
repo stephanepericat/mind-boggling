@@ -5,23 +5,48 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "preview": "nuxt preview",
+    "preview": "wrangler pages dev dist",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "pnpm lint && pnpm typecheck && pnpm room:typecheck && pnpm test && pnpm build",
+    "cf:types": "wrangler types server/types/worker-configuration.d.ts --include-runtime false && wrangler types workers/match-room/worker-configuration.d.ts --config workers/match-room/wrangler.jsonc --include-runtime false",
+    "db:migrate:local": "wrangler d1 migrations apply mind-boggling --local",
+    "db:migrate:remote": "wrangler d1 migrations apply mind-boggling --remote",
+    "room:dev": "wrangler dev --config workers/match-room/wrangler.jsonc",
+    "room:typecheck": "tsc --noEmit -p workers/match-room/tsconfig.json",
+    "room:deploy": "wrangler deploy --config workers/match-room/wrangler.jsonc",
+    "deploy": "pnpm build && wrangler pages deploy dist"
   },
   "dependencies": {
+    "@clerk/backend": "^3.16.1",
+    "@clerk/nuxt": "^3.0.4",
+    "@fontsource-variable/funnel-sans": "^5.3.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@iconify-json/lucide": "^1.2.121",
     "@iconify-json/simple-icons": "^1.2.92",
     "@nuxt/ui": "^4.10.0",
+    "@standard-schema/spec": "^1.1.0",
+    "an-array-of-english-words": "^2.0.0",
     "nuxt": "^4.5.1",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "vue-router": "^5.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260808.1",
     "@nuxt/eslint": "^1.16.0",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
+    "nitro-cloudflare-dev": "^0.2.2",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.9"
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.9",
+    "wrangler": "^4.120.0"
   },
   "packageManager": "pnpm@11.18.0"
 }

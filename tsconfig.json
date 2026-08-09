@@ -1,5 +1,9 @@
 {
   // https://nuxt.com/docs/guide/concepts/typescript
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "types": ["@cloudflare/workers-types", "vitest/globals"]
+  },
   "files": [],
   "references": [
     { "path": "./.nuxt/tsconfig.app.json" },

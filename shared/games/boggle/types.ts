@@ -1,0 +1,56 @@
+export interface BoggleSettings {
+  boardSize: 4 | 5 | 6
+  roundSeconds: 180 | 240 | 300
+  minWordLength: 2 | 3 | 4
+  rounds: 1 | 2 | 3 | 4 | 5
+  locale: 'en-US'
+}
+
+export interface BoggleTile {
+  id: number
+  row: number
+  column: number
+  letters: string
+}
+
+export interface BoggleBoard {
+  size: 4 | 5 | 6
+  seed: string
+  distributionVersion: string
+  dictionaryVersion: string
+  tiles: BoggleTile[]
+}
+
+export interface WordSubmission {
+  memberId: string
+  displayName: string
+  word: string
+  path: number[]
+  submittedAt: number
+}
+
+export type WordRejectionCode
+  = | 'round_not_active'
+    | 'word_too_short'
+    | 'word_not_on_board'
+    | 'word_not_in_dictionary'
+    | 'word_already_submitted'
+
+export interface WordValidation {
+  valid: boolean
+  normalizedWord: string
+  path: number[]
+  rejectionCode?: WordRejectionCode
+}
+
+export interface ScoredWord extends WordSubmission {
+  points: number
+  duplicate: boolean
+}
+
+export interface MemberRoundScore {
+  memberId: string
+  displayName: string
+  points: number
+  words: ScoredWord[]
+}
