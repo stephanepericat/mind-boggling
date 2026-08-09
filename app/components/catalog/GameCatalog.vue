@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { GameManifest } from '../../../shared/games/contract'
-import type { MatchHistoryItem } from '../../../shared/types/api'
 
 const { data, status, error } = await useFetch<{ games: GameManifest[] }>('/api/catalog')
-const { data: history } = await useFetch<{ matches: MatchHistoryItem[] }>('/api/history')
+const { data: history } = await useMatchHistory('/api/history')
 
 const futureGames = [
   { name: 'UNO', icon: 'i-lucide-layers-3', description: 'Classic color-matching chaos for the whole table.' },

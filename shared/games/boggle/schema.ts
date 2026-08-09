@@ -5,6 +5,7 @@ export const boggleSettingsSchema = z.object({
   roundSeconds: z.union([z.literal(180), z.literal(240), z.literal(300)]).default(180),
   minWordLength: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
   rounds: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),
+  countdownWarning: z.boolean().default(true),
   locale: z.literal('en-US').default('en-US')
 })
 

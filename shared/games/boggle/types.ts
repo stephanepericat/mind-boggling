@@ -3,6 +3,7 @@ export interface BoggleSettings {
   roundSeconds: 180 | 240 | 300
   minWordLength: 2 | 3 | 4
   rounds: 1 | 2 | 3 | 4 | 5
+  countdownWarning: boolean
   locale: 'en-US'
 }
 

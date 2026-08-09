@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type { MatchHistoryItem } from '../../../shared/types/api'
-
-const { data, status, error, refresh } = await useFetch<{ matches: MatchHistoryItem[] }>('/api/history')
+const { data, status, error, refresh } = await useMatchHistory('/api/history')
 const formatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' })
 const ordinal = new Intl.PluralRules('en-US', { type: 'ordinal' })
 

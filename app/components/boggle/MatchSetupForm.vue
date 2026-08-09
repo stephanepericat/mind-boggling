@@ -9,6 +9,7 @@ const settings = reactive<BoggleSettings>({
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
+  countdownWarning: true,
   locale: 'en-US'
 })
 
@@ -108,6 +109,14 @@ async function submit() {
           </div>
         </fieldset>
 
+        <div class="mt-5 border-t border-slate-200 pt-5">
+          <USwitch
+            v-model="settings.countdownWarning"
+            label="10-second countdown warning"
+            description="Show a prominent countdown and play a short tone during the final ten seconds of each round."
+          />
+        </div>
+
         <div class="mt-6 flex flex-col items-start justify-between gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
           <p class="text-xs text-slate-500">
             <UIcon
@@ -174,6 +183,13 @@ async function submit() {
               Match
             </dt><dd class="font-mono font-bold">
               {{ settings.rounds }} rounds
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-600">
+              Countdown warning
+            </dt><dd class="font-mono font-bold">
+              {{ settings.countdownWarning ? 'On' : 'Off' }}
             </dd>
           </div>
         </dl>

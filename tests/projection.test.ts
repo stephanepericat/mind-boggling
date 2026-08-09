@@ -7,7 +7,7 @@ const activeState: RoomState = {
   name: 'Sunday',
   gameKey: 'boggle.v1',
   status: 'active',
-  settings: { boardSize: 4, roundSeconds: 180, minWordLength: 3, rounds: 3, locale: 'en-US' },
+  settings: { boardSize: 4, roundSeconds: 180, minWordLength: 3, rounds: 3, countdownWarning: true, locale: 'en-US' },
   hostMemberId: 'host',
   currentRound: 1,
   members: [

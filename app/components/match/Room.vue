@@ -8,6 +8,10 @@ watch(error, (message) => {
   if (message) toast.add({ title: 'Match update', description: message, color: 'warning' })
 })
 
+watch(() => state.value?.status, (status, previousStatus) => {
+  if (status === 'finished' && previousStatus !== 'finished') invalidateMatchHistory()
+})
+
 async function sendSimple(value:
   | { type: 'member.ready', ready: boolean }
   | { type: 'member.remove', memberId: string }
@@ -51,7 +55,10 @@ async function cancelMatch() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1320px] px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
+  <div
+    class="mx-auto max-w-[1320px] px-5 sm:px-8 lg:px-12"
+    :class="state?.status === 'active' ? 'py-4 lg:py-5' : 'py-8 lg:py-10'"
+  >
     <div
       v-if="loading"
       class="grid min-h-[65vh] place-items-center"
@@ -68,7 +75,10 @@ async function cancelMatch() {
       :description="error ?? 'The room is unavailable.'"
     />
     <template v-else>
-      <div class="mb-7 overflow-x-auto pb-2">
+      <div
+        v-if="state.status !== 'active'"
+        class="mb-7 overflow-x-auto pb-2"
+      >
         <MatchMatchTrack
           :status="state.status"
           :current-round="state.currentRound"

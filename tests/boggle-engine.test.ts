@@ -15,6 +15,7 @@ const settings: BoggleSettings = {
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
+  countdownWarning: true,
   locale: 'en-US'
 }
 
@@ -28,6 +29,10 @@ describe('Boggle settings', () => {
     expect(() => boggleSettingsSchema.parse({ roundSeconds: 60 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ minWordLength: 5 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ rounds: 6 })).toThrow()
+  })
+
+  it('allows the countdown warning to be disabled', () => {
+    expect(boggleSettingsSchema.parse({ countdownWarning: false }).countdownWarning).toBe(false)
   })
 })
 

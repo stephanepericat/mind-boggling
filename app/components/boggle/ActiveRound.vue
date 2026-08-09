@@ -14,6 +14,8 @@ const minutes = computed(() => Math.floor(remainingSeconds.value / 60))
 const seconds = computed(() => remainingSeconds.value % 60)
 const progress = computed(() => remainingSeconds.value / props.match.settings.roundSeconds * 100)
 const isHost = computed(() => props.match.members.find(member => member.id === props.match.viewerMemberId)?.role === 'host')
+const countdownWarningEnabled = computed(() => props.match.settings.countdownWarning !== false)
+const isCountdownActive = computed(() => countdownWarningEnabled.value && remainingSeconds.value >= 1 && remainingSeconds.value <= 10)
 
 onMounted(() => {
   timer = setInterval(() => {
@@ -52,14 +54,17 @@ function endMatch() {
 <template>
   <div
     v-if="match.board"
-    class="grid gap-6 xl:grid-cols-[1fr_21rem]"
+    class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]"
   >
-    <section>
-      <div class="mb-5 flex items-center justify-between gap-4 rounded-xl bg-slate-950 px-5 py-4 text-white">
+    <section class="min-w-0">
+      <div
+        class="mb-3 flex items-center justify-between gap-4 rounded-xl px-4 py-3 text-white sm:px-5"
+        :class="isCountdownActive ? 'bg-red-950' : 'bg-slate-950'"
+      >
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.15em] text-primary-300">
             Round {{ match.currentRound }} of {{ match.settings.rounds }}
-          </p><p class="mt-1 text-sm text-slate-300">
+          </p><p class="mt-0.5 hidden text-sm text-slate-300 sm:block">
             Find connected words. Each tile can be used once.
           </p>
         </div>
@@ -79,18 +84,18 @@ function endMatch() {
           </p>
         </div>
       </div>
+      <BoggleCountdownWarning
+        :remaining-seconds="remainingSeconds"
+        :enabled="countdownWarningEnabled"
+      />
       <UProgress
         :model-value="progress"
+        :color="isCountdownActive ? 'error' : 'primary'"
         size="sm"
-        class="mb-5"
-      />
-      <BoggleBoard
-        :board="match.board"
-        :selected-path="selectedPath"
-        @select="selectTile"
+        class="mb-3"
       />
       <form
-        class="mx-auto mt-5 flex max-w-[38rem] gap-2"
+        class="mx-auto flex max-w-[38rem] gap-2"
         @submit.prevent="submit"
       >
         <UInput
@@ -111,16 +116,23 @@ function endMatch() {
           Submit
         </UButton>
       </form>
-      <div class="mx-auto mt-3 flex max-w-[38rem] items-center justify-between text-xs text-slate-500">
+      <div class="mx-auto mt-1.5 flex max-w-[38rem] flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
         <button
           type="button"
-          class="underline underline-offset-2"
+          class="min-h-8 underline underline-offset-2"
           @click="word = ''; selectedPath = []"
         >
           Clear selection
         </button>
         <span>Minimum {{ match.settings.minWordLength }} letters · Qu counts as two</span>
       </div>
+      <BoggleBoard
+        :board="match.board"
+        :selected-path="selectedPath"
+        viewport-fit
+        class="mt-2"
+        @select="selectTile"
+      />
     </section>
 
     <aside class="space-y-5">

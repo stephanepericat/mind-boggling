@@ -209,6 +209,13 @@ async function revokeInvite() {
             {{ match.settings.rounds }}
           </dd>
         </div>
+        <div class="flex justify-between gap-4">
+          <dt class="text-slate-500">
+            Countdown warning
+          </dt><dd class="font-mono font-bold">
+            {{ match.settings.countdownWarning !== false ? 'On' : 'Off' }}
+          </dd>
+        </div>
       </dl>
       <MatchCancelMatchDialog
         v-if="isHost"
