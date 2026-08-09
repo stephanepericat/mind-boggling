@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "mind-boggling",
-      "database_id": "replace-with-your-d1-database-id",
+      "database_id": "9c9054c9-cc4c-482c-b16d-b973020e5b6e",
       "migrations_dir": "migrations"
     }
   ],

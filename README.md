@@ -85,7 +85,7 @@ Run all checks with `pnpm check`.
 
 ## Cloudflare deployment
 
-1. Replace `replace-with-your-d1-database-id` in both [`wrangler.jsonc`](wrangler.jsonc) and [`workers/match-room/wrangler.jsonc`](workers/match-room/wrangler.jsonc).
+1. Confirm both [`wrangler.jsonc`](wrangler.jsonc) and [`workers/match-room/wrangler.jsonc`](workers/match-room/wrangler.jsonc) reference the same D1 database ID.
 2. Apply D1 migrations to production:
 
    ```bash
