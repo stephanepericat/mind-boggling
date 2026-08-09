@@ -1,4 +1,6 @@
 <script setup lang="ts">
+definePageMeta({ path: '/sign-in/:pathMatch(.*)*' })
+
 const route = useRoute()
 const redirectUrl = computed(() => typeof route.query.redirect_url === 'string' && route.query.redirect_url.startsWith('/') ? route.query.redirect_url : '/')
 </script>
