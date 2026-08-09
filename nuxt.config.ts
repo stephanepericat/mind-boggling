@@ -29,6 +29,7 @@ export default defineNuxtConfig({
 
   clerk: {
     publishableKey: process.env.NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    skipServerMiddleware: true,
     signInUrl: '/sign-in',
     signInFallbackRedirectUrl: '/',
     signUpUrl: '/access-required'
