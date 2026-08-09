@@ -26,6 +26,10 @@ export const matchCommandSchema = z.discriminatedUnion('type', [
     idempotencyKey: z.string().min(8).max(100)
   }),
   z.object({
+    type: z.literal('match.cancel'),
+    idempotencyKey: z.string().min(8).max(100)
+  }),
+  z.object({
     type: z.literal('member.remove'),
     idempotencyKey: z.string().min(8).max(100),
     memberId: z.string().min(1).max(100)

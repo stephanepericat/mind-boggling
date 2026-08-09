@@ -3,6 +3,7 @@ import {
   boggleSettingsSchema,
   findWordPath,
   generateBoard,
+  matchCommandSchema,
   scoreRound,
   scoreWord,
   validateWord
@@ -27,6 +28,18 @@ describe('Boggle settings', () => {
     expect(() => boggleSettingsSchema.parse({ roundSeconds: 60 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ minWordLength: 5 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ rounds: 6 })).toThrow()
+  })
+})
+
+describe('match commands', () => {
+  it('accepts an idempotent match cancellation command', () => {
+    expect(matchCommandSchema.parse({
+      type: 'match.cancel',
+      idempotencyKey: 'cancel-match-1'
+    })).toEqual({
+      type: 'match.cancel',
+      idempotencyKey: 'cancel-match-1'
+    })
   })
 })
 

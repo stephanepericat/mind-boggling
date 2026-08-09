@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { MatchView } from '../../../shared/types/api'
 
-const props = defineProps<{ match: MatchView, connected: boolean }>()
+const props = defineProps<{ match: MatchView, connected: boolean, cancelling: boolean }>()
 const emit = defineEmits<{
   command: [command:
     | { type: 'member.ready', ready: boolean }
     | { type: 'member.remove', memberId: string }
     | { type: 'match.start' }]
+  cancel: []
 }>()
 const toast = useToast()
 const inviteUrl = ref('')
@@ -209,6 +210,13 @@ async function revokeInvite() {
           </dd>
         </div>
       </dl>
+      <MatchCancelMatchDialog
+        v-if="isHost"
+        :match-name="match.name"
+        :loading="cancelling"
+        class="mt-6 w-full"
+        @confirm="emit('cancel')"
+      />
     </aside>
   </div>
 </template>

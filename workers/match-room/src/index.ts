@@ -203,6 +203,22 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       return null
     }
 
+    if (command.type === 'match.cancel') {
+      if (actor.role !== 'host') return 'host_only'
+      if (state.status !== 'lobby') return 'invalid_state'
+      const cancelledAt = new Date().toISOString()
+      await this.env.DB.batch([
+        this.env.DB.prepare(
+          'UPDATE matches SET status = \'cancelled\', ended_at = ?1 WHERE id = ?2 AND status = \'lobby\''
+        ).bind(cancelledAt, state.id),
+        this.env.DB.prepare(
+          'UPDATE invites SET revoked_at = ?1 WHERE match_id = ?2 AND revoked_at IS NULL'
+        ).bind(cancelledAt, state.id)
+      ])
+      state.status = 'cancelled'
+      return null
+    }
+
     if (command.type === 'member.remove') {
       if (actor.role !== 'host') return 'host_only'
       if (state.status !== 'lobby') return 'invalid_state'

@@ -24,7 +24,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-08-08',
 
   nitro: {
-    preset: 'cloudflare_pages'
+    preset: 'cloudflare_pages',
+    entry: './cloudflare-pages-entry.ts'
   },
 
   clerk: {
