@@ -220,7 +220,7 @@ Create the first pure game module under `games/boggle/server/`:
 - Accept submissions only while the authoritative round is active.
 - Finalize a round transactionally: group duplicate words, assign zero where required, calculate per-player totals, persist ranks, and emit one finalized result.
 
-The dictionary source and license must be chosen before shipping. Store its version with each Boggle round so future dictionary updates do not make historical results ambiguous. Nothing in the platform core should import dictionary or board code.
+The MVP uses `an-array-of-english-words@2.0.0` (MIT) as its US English dictionary. Its stable version identifier is stored with each generated board so future dictionary updates do not make historical results ambiguous. Nothing in the platform core imports dictionary or board code.
 
 ## 7. Routes and user flows
 

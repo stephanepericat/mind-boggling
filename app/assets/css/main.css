@@ -1,18 +1,38 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/funnel-sans";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/700.css";
 @import "tailwindcss";
 @import "@nuxt/ui";
 
 @theme static {
-  --font-sans: 'Public Sans', sans-serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Funnel Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  --color-blue-50: #EAF2FF;
+  --color-blue-100: #D9E8FF;
+  --color-blue-200: #B8D4FF;
+  --color-blue-300: #87B7FF;
+  --color-blue-400: #4D90FF;
+  --color-blue-500: #176FFF;
+  --color-blue-600: #0062FF;
+  --color-blue-700: #004CD6;
+  --color-blue-800: #073FA7;
+  --color-blue-900: #0B377F;
+  --color-blue-950: #08224E;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-950 antialiased;
+  }
+
+  button, a, input {
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600;
+  }
+}
+
+@utility game-panel {
+  @apply border border-slate-200 bg-white shadow-sm;
 }

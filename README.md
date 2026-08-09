@@ -1,64 +1,120 @@
-# Nuxt Starter Template
+# Mind Boggling
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+An invite-only multiplayer game platform built with Nuxt 4 and Nuxt UI. The MVP ships Boggle; the game registry and authoritative room boundary are designed to support UNO and Farkle later.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+## Architecture
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+- Nuxt Pages application: UI, Clerk authentication, D1-backed platform APIs, and the authenticated Durable Object gateway.
+- One Cloudflare Durable Object per match: authoritative lobby, timers, submissions, scoring, presence, and WebSockets.
+- Cloudflare D1: users, memberships, hashed match invites, finalized scores, and participant-only history.
+- Clerk: dashboard-managed platform admission, authentication, friendly display names, passwords, and sessions.
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
+KV is deliberately not used for live rooms: it is eventually consistent and cannot serialize concurrent match commands. Durable Objects provide the single-writer coordination and alarms a timed multiplayer game needs.
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+The detailed product and engineering plan is in [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
-## Quick Start
+## Prerequisites
 
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
+- Node.js 22 or newer
+- pnpm 11
+- A Clerk application
+- A Cloudflare account with Pages, Workers, Durable Objects, and D1 access
 
-## Deploy your own
+## Local setup
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
+1. Install dependencies:
 
-## Setup
+   ```bash
+   pnpm install
+   ```
 
-Make sure to install the dependencies:
+2. Copy `.env.example` to `.env` and replace every placeholder. Keep `NUXT_PUBLIC_DEMO_MODE=false` for real authentication. Demo mode bypasses the server session for local UI work, still requires the Clerk publishable key to initialize its UI SDK, and must never be enabled in production.
+
+3. In the Clerk dashboard:
+
+   - Disable public sign-up and invite approved friends and family from the dashboard.
+   - Add `http://localhost:3000` and the deployed Pages origin to the application's allowed origins/redirect URLs.
+   - Keep the sign-in route at `/sign-in`; unapproved visitors are sent to `/access-required`.
+
+4. Create D1 and put the returned ID in both `wrangler.jsonc` files:
+
+   ```bash
+   pnpm exec wrangler d1 create mind-boggling
+   ```
+
+5. Apply the database migration locally:
+
+   ```bash
+   pnpm db:migrate:local
+   ```
+
+6. Run the Durable Object Worker and Nuxt app in separate terminals:
+
+   ```bash
+   pnpm room:dev
+   pnpm dev
+   ```
+
+## Environment variables
+
+`.env.example` is the source-of-truth checklist. The browser receives only variables prefixed with `NUXT_PUBLIC_`.
+
+| Variable | Purpose |
+| --- | --- |
+| `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk browser SDK key |
+| `NUXT_CLERK_SECRET_KEY` | Clerk Backend API key; server-only |
+| `NUXT_PUBLIC_APP_URL` | Canonical origin used for match invite links |
+| `NUXT_INVITE_COOKIE_SECRET` | At least 32 random bytes for signed invite-intent cookies |
+| `NUXT_PUBLIC_DEMO_MODE` | Local-only fake identity switch; always `false` in production |
+| `CLOUDFLARE_ACCOUNT_ID` | Wrangler deployment account |
+| `CLOUDFLARE_API_TOKEN` | Wrangler deployment token; never expose to Nuxt public runtime config |
+
+Generate the cookie secret with `openssl rand -base64 32`.
+
+## Quality checks
 
 ```bash
-pnpm install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-pnpm dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
+pnpm lint
+pnpm typecheck
+pnpm room:typecheck
+pnpm test
 pnpm build
 ```
 
-Locally preview production build:
+Run all checks with `pnpm check`.
 
-```bash
-pnpm preview
-```
+## Cloudflare deployment
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+1. Replace `replace-with-your-d1-database-id` in both [`wrangler.jsonc`](wrangler.jsonc) and [`workers/match-room/wrangler.jsonc`](workers/match-room/wrangler.jsonc).
+2. Apply D1 migrations to production:
 
-## Renovate integration
+   ```bash
+   pnpm db:migrate:remote
+   ```
 
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+3. Deploy the Durable Object Worker first so the Pages external binding has a target:
+
+   ```bash
+   pnpm room:deploy
+   ```
+
+4. Configure the `.env.example` values as Cloudflare Pages variables/secrets. The publishable key and public app URL must be available during the Pages build; the Clerk key, invite-cookie secret, account ID, and API token are secrets. Never commit their real values.
+5. Build and deploy Pages:
+
+   ```bash
+   pnpm deploy
+   ```
+
+Cloudflare dashboard bindings must match the source configuration: D1 as `DB` and the external Durable Object namespace as `MATCH_ROOMS`, class `MatchRoom`, script `mind-boggling-match-room`.
+
+## MVP rules
+
+- Board size: 4×4, 5×5, or 6×6
+- Round time: 3, 4, or 5 minutes
+- Minimum word length: 2, 3, or 4 characters
+- Match length: 1–5 rounds, default 3
+- US English dictionary and Boggle scoring
+- Versioned MIT-licensed `an-array-of-english-words` dictionary
+- Words submitted by multiple players score zero for everyone
+- During play, opponents see only word counts; words and scores are revealed after the round
+- Match history is available only to participants
