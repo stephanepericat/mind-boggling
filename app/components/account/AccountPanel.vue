@@ -24,7 +24,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1040px] px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
+  <div class="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
     <p class="text-xs font-bold uppercase tracking-[0.18em] text-primary-700">
       Your account
     </p>
@@ -35,9 +35,9 @@ async function save() {
       Your friendly name appears in lobbies and scoreboards. Password and security stay with Clerk.
     </p>
 
-    <div class="mt-8 grid gap-6 lg:grid-cols-[22rem_1fr]">
+    <div class="mt-8 grid gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
       <form
-        class="game-panel h-fit rounded-xl p-6"
+        class="game-panel h-fit w-full max-w-md rounded-xl p-6 xl:max-w-none"
         @submit.prevent="save"
       >
         <div class="grid size-12 place-items-center rounded-xl bg-amber-300 font-display text-lg font-black">
@@ -69,10 +69,10 @@ async function save() {
         </UButton>
       </form>
 
-      <div class="game-panel min-h-96 overflow-hidden rounded-xl p-2">
+      <div class="min-w-0">
         <div
           v-if="config.public.demoMode"
-          class="grid min-h-80 place-items-center p-8 text-center"
+          class="game-panel grid min-h-80 place-items-center rounded-xl p-8 text-center"
         >
           <div>
             <UIcon
@@ -86,7 +86,16 @@ async function save() {
           </div>
         </div>
         <ClientOnly v-else>
-          <UserProfile routing="hash" />
+          <UserProfile
+            routing="hash"
+            :appearance="{
+              elements: {
+                rootBox: 'w-full',
+                cardBox: 'w-full max-w-none shadow-sm',
+                card: 'w-full max-w-none'
+              }
+            }"
+          />
         </ClientOnly>
       </div>
     </div>
