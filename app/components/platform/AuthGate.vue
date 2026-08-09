@@ -7,10 +7,10 @@ const signInUrl = computed(() => `/sign-in?redirect_url=${encodeURIComponent(rou
 <template>
   <slot v-if="config.public.demoMode" />
   <ClientOnly v-else>
-    <SignedIn>
+    <Show when="signed-in">
       <slot />
-    </SignedIn>
-    <SignedOut>
+    </Show>
+    <Show when="signed-out">
       <div class="mx-auto flex min-h-[calc(100vh-4.75rem)] max-w-lg items-center px-6 py-16">
         <div class="w-full text-center">
           <div class="mx-auto mb-6 grid size-16 place-items-center rounded-2xl bg-primary-50 text-primary-700">
@@ -38,7 +38,7 @@ const signInUrl = computed(() => `/sign-in?redirect_url=${encodeURIComponent(rou
           </UButton>
         </div>
       </div>
-    </SignedOut>
+    </Show>
     <template #fallback>
       <div class="grid min-h-[60vh] place-items-center">
         <UIcon

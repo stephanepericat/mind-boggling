@@ -48,17 +48,23 @@ const links = computed(() => [
               class="bg-amber-300 text-slate-900"
             />
           </template>
-          <SignedIn v-else>
+          <Show
+            v-else
+            when="signed-in"
+          >
             <UserButton />
-          </SignedIn>
-          <SignedOut v-if="!config.public.demoMode">
+          </Show>
+          <Show
+            v-if="!config.public.demoMode"
+            when="signed-out"
+          >
             <UButton
               to="/sign-in"
               size="sm"
             >
               Sign in
             </UButton>
-          </SignedOut>
+          </Show>
         </ClientOnly>
       </div>
     </div>
