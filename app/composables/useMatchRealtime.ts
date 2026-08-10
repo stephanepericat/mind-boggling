@@ -1,17 +1,21 @@
 import type { MatchCommand } from '../../shared/games/boggle/schema'
+import type { ChatMessage, ChatSendCommand } from '../../shared/platform/chat'
 import type { MatchView, RealtimeEnvelope } from '../../shared/types/api'
 
 interface SnapshotResponse {
   state: MatchView
   serverTime: number
+  chatMessages: ChatMessage[]
 }
 
 export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
   const state = shallowRef<MatchView | null>(null)
-  const connected = ref(false)
-  const loading = ref(true)
-  const error = ref<string | null>(null)
-  const serverOffset = ref(0)
+  const connected = shallowRef(false)
+  const loading = shallowRef(true)
+  const error = shallowRef<string | null>(null)
+  const serverOffset = shallowRef(0)
+  const chatMessages = shallowRef<ChatMessage[]>([])
+  const latestChatMessage = shallowRef<ChatMessage | null>(null)
   let socket: WebSocket | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectAttempts = 0
@@ -25,6 +29,7 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
       const response = await $fetch<SnapshotResponse>(`/api/matches/${id.value}`)
       state.value = response.state
       serverOffset.value = response.serverTime - Date.now()
+      chatMessages.value = response.chatMessages ?? []
       error.value = null
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : 'Unable to load this match.'
@@ -55,11 +60,7 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
     socket.addEventListener('message', (message) => {
       try {
         const envelope = JSON.parse(String(message.data)) as RealtimeEnvelope
-        if (envelope.type === 'state.snapshot') state.value = envelope.payload as MatchView
-        if (envelope.type === 'error') {
-          const payload = envelope.payload as { code?: string }
-          error.value = payload.code?.replaceAll('_', ' ') ?? 'The command was rejected.'
-        }
+        receiveEnvelope(envelope)
       } catch {
         error.value = 'A realtime update could not be read.'
       }
@@ -73,6 +74,24 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
     })
   }
 
+  function receiveEnvelope(envelope: RealtimeEnvelope) {
+    if (envelope.type === 'state.snapshot') state.value = envelope.payload as MatchView
+    if (envelope.type === 'chat.history') {
+      chatMessages.value = (envelope.payload as { messages: ChatMessage[] }).messages
+    }
+    if (envelope.type === 'chat.message') {
+      const chatMessage = envelope.payload as ChatMessage
+      if (!chatMessages.value.some(item => item.id === chatMessage.id)) {
+        chatMessages.value = [...chatMessages.value, chatMessage].slice(-100)
+        latestChatMessage.value = chatMessage
+      }
+    }
+    if (envelope.type === 'error') {
+      const payload = envelope.payload as { code?: string }
+      error.value = payload.code?.replaceAll('_', ' ') ?? 'The command was rejected.'
+    }
+  }
+
   async function send(command: MatchCommand) {
     error.value = null
     if (socket?.readyState === WebSocket.OPEN) {
@@ -81,6 +100,31 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
     }
     await $fetch(`/api/matches/${id.value}/command`, { method: 'POST', body: command })
     await load()
+  }
+
+  async function sendChat(text: string) {
+    const trimmedText = text.trim()
+    if (!trimmedText) return
+
+    error.value = null
+    const chatCommand: ChatSendCommand = {
+      type: 'chat.send',
+      idempotencyKey: crypto.randomUUID(),
+      text: trimmedText
+    }
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(chatCommand))
+      return
+    }
+    try {
+      const response = await $fetch<RealtimeEnvelope>(`/api/matches/${id.value}/command`, {
+        method: 'POST',
+        body: chatCommand
+      })
+      receiveEnvelope(response)
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : 'The message could not be sent.'
+    }
   }
 
   function command<T extends Omit<MatchCommand, 'idempotencyKey'>>(value: T): MatchCommand {
@@ -98,5 +142,17 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
     socket?.close()
   })
 
-  return { state, connected, loading, error, serverOffset, load, send, command }
+  return {
+    state,
+    connected,
+    loading,
+    error,
+    serverOffset,
+    chatMessages,
+    latestChatMessage,
+    load,
+    send,
+    sendChat,
+    command
+  }
 }

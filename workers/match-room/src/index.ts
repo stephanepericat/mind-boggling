@@ -3,6 +3,8 @@
 import { DurableObject } from 'cloudflare:workers'
 import { generateBoard, matchCommandSchema, scoreRound, validateWord } from '../../../shared/games/boggle'
 import type { MatchCommand } from '../../../shared/games/boggle/schema'
+import { chatSendSchema } from '../../../shared/platform/chat'
+import type { ChatMessage, ChatSendCommand } from '../../../shared/platform/chat'
 import type { MatchView, RealtimeEnvelope } from '../../../shared/types/api'
 import type { ConnectionAttachment, InitializeRoomInput, RoomMember, RoomSnapshotResponse, RoomState } from './types'
 import { projectRoomState } from './projection'
@@ -15,6 +17,14 @@ function parseAttachment(socket: WebSocket): ConnectionAttachment | null {
   const value = socket.deserializeAttachment()
   if (!value || typeof value !== 'object' || !('memberId' in value)) return null
   return value as ConnectionAttachment
+}
+
+type ChatMessageRow = {
+  id: number
+  member_id: string
+  display_name: string
+  message_text: string
+  sent_at: number
 }
 
 export class MatchRoom extends DurableObject<Cloudflare.Env> {
@@ -35,6 +45,14 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
           idempotency_key TEXT PRIMARY KEY,
           payload_json TEXT NOT NULL,
           delivered_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          idempotency_key TEXT NOT NULL UNIQUE,
+          member_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          message_text TEXT NOT NULL,
+          sent_at INTEGER NOT NULL
         );
       `)
     })
@@ -84,7 +102,7 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     try {
       const text = typeof message === 'string' ? message : new TextDecoder().decode(message)
       const command = JSON.parse(text)
-      const response = await this.handleCommand(attachment.memberId, command)
+      const response = await this.handleMessage(attachment.memberId, command, socket)
       socket.send(JSON.stringify(response))
     } catch {
       socket.send(JSON.stringify({ type: 'error', payload: { code: 'invalid_message' } }))
@@ -129,14 +147,15 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     if (!state.members.some(member => member.id === memberId)) return json({ error: 'forbidden' }, 403)
     const response: RoomSnapshotResponse = {
       state: this.project(state, memberId),
-      serverTime: Date.now()
+      serverTime: Date.now(),
+      chatMessages: this.readChatMessages()
     }
     return json(response)
   }
 
   private async command(memberId: string | null, body: unknown): Promise<Response> {
     if (!memberId) return json({ error: 'unauthorized' }, 401)
-    const result = await this.handleCommand(memberId, body)
+    const result = await this.handleMessage(memberId, body)
     return json(result, result.type === 'error' ? 400 : 200)
   }
 
@@ -150,8 +169,60 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     this.ctx.acceptWebSocket(server, [memberId])
     server.serializeAttachment({ memberId, connectedAt: Date.now() } satisfies ConnectionAttachment)
     server.send(JSON.stringify(this.envelope(state, 'state.snapshot', this.project(state, memberId))))
+    server.send(JSON.stringify(this.envelope(state, 'chat.history', { messages: this.readChatMessages() })))
     this.broadcastSnapshots(state)
     return new Response(null, { status: 101, webSocket: client })
+  }
+
+  private async handleMessage(memberId: string, body: unknown, sourceSocket?: WebSocket): Promise<RealtimeEnvelope> {
+    const parsedChat = chatSendSchema.safeParse(body)
+    if (parsedChat.success) return this.handleChatMessage(memberId, parsedChat.data, sourceSocket)
+    return this.handleCommand(memberId, body)
+  }
+
+  private handleChatMessage(
+    memberId: string,
+    command: ChatSendCommand,
+    sourceSocket?: WebSocket
+  ): RealtimeEnvelope {
+    const state = this.requireState()
+    const actor = state.members.find(member => member.id === memberId)
+    if (!actor) return this.envelope(state, 'error', { code: 'forbidden' })
+
+    const existing = this.ctx.storage.sql
+      .exec<ChatMessageRow>(`
+        SELECT id, member_id, display_name, message_text, sent_at
+        FROM chat_messages
+        WHERE idempotency_key = ?
+      `, command.idempotencyKey)
+      .toArray()[0]
+    if (existing) return this.envelope(state, 'chat.message', this.toChatMessage(existing))
+
+    const sentAt = Date.now()
+    this.ctx.storage.sql.exec(
+      `INSERT INTO chat_messages (idempotency_key, member_id, display_name, message_text, sent_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      command.idempotencyKey,
+      memberId,
+      actor.displayName,
+      command.text,
+      sentAt
+    )
+    const inserted = this.ctx.storage.sql
+      .exec<ChatMessageRow>(`
+        SELECT id, member_id, display_name, message_text, sent_at
+        FROM chat_messages
+        WHERE idempotency_key = ?
+      `, command.idempotencyKey)
+      .toArray()[0]!
+    this.ctx.storage.sql.exec(`
+      DELETE FROM chat_messages
+      WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT 100)
+    `)
+
+    const envelope = this.envelope(state, 'chat.message', this.toChatMessage(inserted))
+    this.broadcastEnvelope(envelope, sourceSocket)
+    return envelope
   }
 
   private async handleCommand(memberId: string, body: unknown): Promise<RealtimeEnvelope> {
@@ -379,6 +450,29 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     return state
   }
 
+  private readChatMessages(): ChatMessage[] {
+    return this.ctx.storage.sql
+      .exec<ChatMessageRow>(`
+        SELECT id, member_id, display_name, message_text, sent_at
+        FROM chat_messages
+        ORDER BY id DESC
+        LIMIT 100
+      `)
+      .toArray()
+      .reverse()
+      .map(row => this.toChatMessage(row))
+  }
+
+  private toChatMessage(row: ChatMessageRow): ChatMessage {
+    return {
+      id: String(row.id),
+      memberId: row.member_id,
+      displayName: row.display_name,
+      text: row.message_text,
+      sentAt: row.sent_at
+    }
+  }
+
   private writeState(state: RoomState): void {
     this.ctx.storage.sql.exec(
       `INSERT INTO room_state (singleton, state_json, updated_at) VALUES (1, ?, ?)
@@ -404,6 +498,22 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       occurredAt: new Date().toISOString(),
       type,
       payload
+    }
+  }
+
+  private broadcastEnvelope(envelope: RealtimeEnvelope, excludedSocket?: WebSocket): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket === excludedSocket) continue
+      try {
+        socket.send(JSON.stringify(envelope))
+      } catch (error) {
+        console.error(JSON.stringify({
+          message: 'websocket event broadcast failed',
+          matchId: envelope.matchId,
+          eventType: envelope.type,
+          error: String(error)
+        }))
+      }
     }
   }
 

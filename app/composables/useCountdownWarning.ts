@@ -33,6 +33,27 @@ export function prepareCountdownAudio() {
   unlockListenersAttached = true
 }
 
+export function playChatNotificationSound() {
+  if (!audioContext || audioContext.state !== 'running') return
+
+  const start = audioContext.currentTime
+  for (const [index, frequency] of [660, 880].entries()) {
+    const toneStart = start + index * 0.09
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(frequency, toneStart)
+    gain.gain.setValueAtTime(0.0001, toneStart)
+    gain.gain.exponentialRampToValueAtTime(0.09, toneStart + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, toneStart + 0.08)
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start(toneStart)
+    oscillator.stop(toneStart + 0.08)
+  }
+}
+
 export function useCountdownWarning(
   remainingSeconds: MaybeRefOrGetter<number>,
   enabled: MaybeRefOrGetter<boolean>

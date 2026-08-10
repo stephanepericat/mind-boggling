@@ -118,3 +118,8 @@ Cloudflare dashboard bindings must match the source configuration: D1 as `DB` an
 - Words submitted by multiple players score zero for everyone
 - During play, opponents see only word counts; words and scores are revealed after the round
 - Match history is available only to participants
+
+## Future features
+- music player
+- chat
+- uno, farkle

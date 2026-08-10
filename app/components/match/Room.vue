@@ -1,8 +1,24 @@
 <script setup lang="ts">
 const props = defineProps<{ matchId: string }>()
 const toast = useToast()
-const { state, connected, loading, error, serverOffset, send, command } = useMatchRealtime(() => props.matchId)
+const {
+  state,
+  connected,
+  loading,
+  error,
+  serverOffset,
+  chatMessages,
+  latestChatMessage,
+  send,
+  sendChat,
+  command
+} = useMatchRealtime(() => props.matchId)
 const cancelling = shallowRef(false)
+
+useChatNotifications(
+  latestChatMessage,
+  () => state.value?.viewerMemberId
+)
 
 watch(error, (message) => {
   if (message) toast.add({ title: 'Match update', description: message, color: 'warning' })
@@ -122,6 +138,14 @@ async function cancelMatch() {
         v-else
         color="warning"
         title="This match is no longer active"
+      />
+      <MatchGameChat
+        v-if="state.status !== 'cancelled'"
+        :messages="chatMessages"
+        :latest-message="latestChatMessage"
+        :viewer-member-id="state.viewerMemberId"
+        :connected="connected"
+        @send="sendChat"
       />
     </template>
   </div>

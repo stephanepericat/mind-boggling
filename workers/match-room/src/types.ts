@@ -1,4 +1,5 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore, WordSubmission } from '../../../shared/games/boggle'
+import type { ChatMessage } from '../../../shared/platform/chat'
 import type { MatchStatus, MatchView } from '../../../shared/types/api'
 
 export interface RoomMember {
@@ -39,4 +40,5 @@ export interface ConnectionAttachment {
 export interface RoomSnapshotResponse {
   state: MatchView
   serverTime: number
+  chatMessages: ChatMessage[]
 }
