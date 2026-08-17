@@ -10,6 +10,8 @@ const selectedPath = ref<number[]>([])
 let timer: ReturnType<typeof setInterval> | null = null
 
 const remainingSeconds = computed(() => Math.max(0, Math.ceil(((props.match.roundEndsAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
+const startsInSeconds = computed(() => Math.max(0, Math.ceil(((props.match.roundStartedAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
+const hasRoundStarted = computed(() => startsInSeconds.value === 0)
 const minutes = computed(() => Math.floor(remainingSeconds.value / 60))
 const seconds = computed(() => remainingSeconds.value % 60)
 const progress = computed(() => remainingSeconds.value / props.match.settings.roundSeconds * 100)
@@ -52,8 +54,14 @@ function endMatch() {
 </script>
 
 <template>
+  <BoggleRoundCountdown
+    v-if="match.board && !hasRoundStarted"
+    :round="match.currentRound"
+    :rounds="match.settings.rounds"
+    :seconds="startsInSeconds"
+  />
   <div
-    v-if="match.board"
+    v-else-if="match.board"
     class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]"
   >
     <section class="min-w-0">

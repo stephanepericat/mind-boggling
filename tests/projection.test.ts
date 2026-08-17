@@ -10,6 +10,8 @@ const activeState: RoomState = {
   settings: { boardSize: 4, roundSeconds: 180, minWordLength: 3, rounds: 3, countdownWarning: true, locale: 'en-US' },
   hostMemberId: 'host',
   currentRound: 1,
+  roundStartedAt: 1_000,
+  roundEndsAt: 181_000,
   members: [
     { id: 'host', clerkUserId: 'user-host', displayName: 'Host', role: 'host', ready: true },
     { id: 'guest', clerkUserId: 'user-guest', displayName: 'Guest', role: 'player', ready: true }
@@ -25,6 +27,8 @@ const activeState: RoomState = {
 describe('participant projections', () => {
   it('shows only the viewer words and opponent word counts during a round', () => {
     const view = projectRoomState(activeState, 'host', new Set(['host', 'guest']))
+    expect(view.roundStartedAt).toBe(1_000)
+    expect(view.roundEndsAt).toBe(181_000)
     expect(view.submittedWords).toEqual(['cat'])
     expect(view.roundScores).toBeUndefined()
     expect(view.members.find(member => member.id === 'guest')?.wordCount).toBe(1)

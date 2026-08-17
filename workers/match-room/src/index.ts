@@ -1,7 +1,13 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { DurableObject } from 'cloudflare:workers'
-import { generateBoard, matchCommandSchema, scoreRound, validateWord } from '../../../shared/games/boggle'
+import {
+  BOGGLE_ROUND_COUNTDOWN_MS,
+  generateBoard,
+  matchCommandSchema,
+  scoreRound,
+  validateWord
+} from '../../../shared/games/boggle'
 import type { MatchCommand } from '../../../shared/games/boggle/schema'
 import { chatSendSchema } from '../../../shared/platform/chat'
 import type { ChatMessage, ChatSendCommand } from '../../../shared/platform/chat'
@@ -305,7 +311,15 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     }
 
     if (command.type === 'boggle.word.submit') {
-      if (state.status !== 'active' || !state.board || !state.roundEndsAt || Date.now() >= state.roundEndsAt) {
+      const now = Date.now()
+      if (
+        state.status !== 'active'
+        || !state.board
+        || !state.roundStartedAt
+        || !state.roundEndsAt
+        || now < state.roundStartedAt
+        || now >= state.roundEndsAt
+      ) {
         return 'round_not_active'
       }
       const validation = validateWord(state.board, state.settings, command.word, command.path)
@@ -317,7 +331,7 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
         displayName: actor.displayName,
         word: validation.normalizedWord,
         path: validation.path,
-        submittedAt: Date.now()
+        submittedAt: now
       })
       return null
     }
@@ -345,13 +359,14 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
 
   private async startRound(state: RoomState, round: number): Promise<void> {
     const now = Date.now()
+    const roundStartedAt = now + BOGGLE_ROUND_COUNTDOWN_MS
     state.status = 'active'
     state.currentRound = round
     state.board = generateBoard(state.settings, crypto.randomUUID())
     state.submissions = []
     state.roundScores = undefined
-    state.roundStartedAt = now
-    state.roundEndsAt = now + state.settings.roundSeconds * 1000
+    state.roundStartedAt = roundStartedAt
+    state.roundEndsAt = roundStartedAt + state.settings.roundSeconds * 1000
     await this.ctx.storage.setAlarm(state.roundEndsAt)
   }
 

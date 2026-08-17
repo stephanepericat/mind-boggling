@@ -1,5 +1,7 @@
 import type { GameManifest } from '../contract'
 
+export const BOGGLE_ROUND_COUNTDOWN_MS = 3_000
+
 export const boggleManifest = {
   key: 'boggle.v1',
   slug: 'boggle',

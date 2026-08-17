@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BOGGLE_ROUND_COUNTDOWN_MS,
   boggleSettingsSchema,
   findWordPath,
   generateBoard,
@@ -20,6 +21,10 @@ const settings: BoggleSettings = {
 }
 
 describe('Boggle settings', () => {
+  it('uses a three-second pre-round countdown', () => {
+    expect(BOGGLE_ROUND_COUNTDOWN_MS).toBe(3_000)
+  })
+
   it('applies the MVP defaults', () => {
     expect(boggleSettingsSchema.parse({})).toEqual(settings)
   })
