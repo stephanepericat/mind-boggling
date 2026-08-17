@@ -4,6 +4,26 @@ import { onMounted, toValue, watch } from 'vue'
 let audioContext: AudioContext | null = null
 let unlockListenersAttached = false
 
+function playCountdownTone(seconds: number, phase: 'round-end' | 'round-start') {
+  if (!audioContext || audioContext.state !== 'running') return
+
+  const finalBeat = phase === 'round-start' ? seconds === 1 : seconds <= 3
+  const start = audioContext.currentTime
+  const duration = finalBeat ? 0.16 : 0.09
+  const oscillator = audioContext.createOscillator()
+  const gain = audioContext.createGain()
+
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(finalBeat ? 880 : 660, start)
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  oscillator.connect(gain)
+  gain.connect(audioContext.destination)
+  oscillator.start(start)
+  oscillator.stop(start + duration)
+}
+
 async function unlockAudio() {
   const AudioContextClass = window.AudioContext
     ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -60,25 +80,6 @@ export function useCountdownWarning(
 ) {
   let lastPlayedSecond: number | null = null
 
-  function playTone(seconds: number) {
-    if (!audioContext || audioContext.state !== 'running') return
-
-    const start = audioContext.currentTime
-    const duration = seconds <= 3 ? 0.16 : 0.09
-    const oscillator = audioContext.createOscillator()
-    const gain = audioContext.createGain()
-
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(seconds <= 3 ? 880 : 660, start)
-    gain.gain.setValueAtTime(0.0001, start)
-    gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
-    oscillator.connect(gain)
-    gain.connect(audioContext.destination)
-    oscillator.start(start)
-    oscillator.stop(start + duration)
-  }
-
   watch(
     () => [toValue(remainingSeconds), toValue(enabled)] as const,
     ([seconds, isEnabled]) => {
@@ -86,9 +87,28 @@ export function useCountdownWarning(
       if (!isEnabled || seconds < 1 || seconds > 10 || seconds === lastPlayedSecond) return
 
       lastPlayedSecond = seconds
-      playTone(seconds)
+      playCountdownTone(seconds, 'round-end')
     },
     { flush: 'post' }
+  )
+
+  onMounted(() => {
+    prepareCountdownAudio()
+  })
+}
+
+export function useRoundStartCountdownSound(remainingSeconds: MaybeRefOrGetter<number>) {
+  let lastPlayedSecond: number | null = null
+
+  watch(
+    () => toValue(remainingSeconds),
+    (seconds) => {
+      if (seconds < 1 || seconds > 3 || seconds === lastPlayedSecond) return
+
+      lastPlayedSecond = seconds
+      playCountdownTone(seconds, 'round-start')
+    },
+    { flush: 'post', immediate: true }
   )
 
   onMounted(() => {

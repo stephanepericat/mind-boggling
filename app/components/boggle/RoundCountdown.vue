@@ -1,9 +1,11 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   round: number
   rounds: number
   seconds: number
 }>()
+
+useRoundStartCountdownSound(() => props.seconds)
 </script>
 
 <template>
