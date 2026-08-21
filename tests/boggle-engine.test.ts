@@ -15,6 +15,7 @@ import type { BoggleBoard, BoggleSettings, WordSubmission } from '../shared/game
 
 const settings: BoggleSettings = {
   boardSize: 4,
+  boardColor: 'blue',
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
@@ -36,6 +37,12 @@ describe('Boggle settings', () => {
     expect(() => boggleSettingsSchema.parse({ roundSeconds: 60 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ minWordLength: 5 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ rounds: 6 })).toThrow()
+    expect(() => boggleSettingsSchema.parse({ boardColor: 'pink' })).toThrow()
+  })
+
+  it('accepts every supported board color', () => {
+    const colors = ['blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']
+    expect(colors.map(boardColor => boggleSettingsSchema.parse({ boardColor }).boardColor)).toEqual(colors)
   })
 
   it('allows the countdown warning to be disabled', () => {

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { BoggleSettings } from '../../../shared/games/boggle'
+import { BOGGLE_BOARD_COLOR_OPTIONS, getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
 
 const toast = useToast()
 const submitting = ref(false)
 const matchName = ref('Family game night')
 const settings = reactive<BoggleSettings>({
   boardSize: 4,
+  boardColor: 'blue',
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
@@ -19,6 +21,9 @@ const options = [
   { key: 'minWordLength' as const, title: 'Minimum valid word', help: 'Words shorter than this do not score.', values: [{ label: '2 characters', value: 2 }, { label: '3 characters', value: 3 }, { label: '4 characters', value: 4 }] },
   { key: 'rounds' as const, title: 'Rounds', help: 'Scores accumulate across the full match.', values: [1, 2, 3, 4, 5].map(value => ({ label: String(value), value })) }
 ]
+
+const selectedBoardColor = computed(() => getBoggleBoardColorOption(settings.boardColor))
+const previewLetters = ['B', 'O', 'G', 'G', 'L', 'E', 'N', 'I', 'G', 'H', 'T', 'S', 'A', 'M', 'E', 'S']
 
 async function submit() {
   submitting.value = true
@@ -109,6 +114,33 @@ async function submit() {
           </div>
         </fieldset>
 
+        <fieldset class="mt-5 border-t border-slate-200 pt-4">
+          <legend class="text-sm font-bold">
+            Board color
+          </legend>
+          <p class="mt-0.5 text-xs text-slate-500">
+            Choose the background behind the letter tiles.
+          </p>
+          <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              v-for="choice in BOGGLE_BOARD_COLOR_OPTIONS"
+              :key="choice.value"
+              type="button"
+              :aria-pressed="settings.boardColor === choice.value"
+              class="flex min-h-11 items-center gap-2 rounded-lg border bg-slate-50 px-3 text-left text-xs font-bold transition"
+              :class="settings.boardColor === choice.value ? 'border-2 border-primary-600 text-primary-700' : 'border-slate-200 text-slate-600 hover:border-slate-400'"
+              @click="settings.boardColor = choice.value"
+            >
+              <span
+                class="size-4 shrink-0 rounded-full ring-1 ring-black/10"
+                :class="choice.backgroundClass"
+                aria-hidden="true"
+              />
+              {{ choice.label }}
+            </button>
+          </div>
+        </fieldset>
+
         <div class="mt-5 border-t border-slate-200 pt-5">
           <USwitch
             v-model="settings.countdownWarning"
@@ -147,13 +179,14 @@ async function submit() {
           </UBadge>
         </div>
         <div
-          class="mt-6 grid aspect-square grid-cols-4 gap-2 rounded-xl bg-white p-4 shadow-sm"
+          class="mt-6 grid aspect-square grid-cols-4 gap-2 rounded-xl p-4 shadow-sm transition-colors"
+          :class="selectedBoardColor.backgroundClass"
           aria-hidden="true"
         >
           <span
-            v-for="letter in ['B', 'O', 'G', 'G', 'L', 'E', 'N', 'I', 'G', 'H', 'T', 'S', 'A', 'M', 'E', 'S']"
-            :key="letter"
-            class="grid place-items-center rounded-md border border-slate-200 font-mono text-lg font-black"
+            v-for="(letter, index) in previewLetters"
+            :key="`${letter}-${index}`"
+            class="grid place-items-center rounded-md border border-slate-200 bg-white font-mono text-lg font-black"
           >{{ letter }}</span>
         </div>
         <dl class="mt-6 space-y-3 text-sm">
@@ -162,6 +195,13 @@ async function submit() {
               Board
             </dt><dd class="font-mono font-bold">
               {{ settings.boardSize }} × {{ settings.boardSize }}
+            </dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-slate-600">
+              Board color
+            </dt><dd class="font-mono font-bold">
+              {{ selectedBoardColor.label }}
             </dd>
           </div>
           <div class="flex justify-between">

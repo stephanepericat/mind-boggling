@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const boggleSettingsSchema = z.object({
   boardSize: z.union([z.literal(4), z.literal(5), z.literal(6)]).default(4),
+  boardColor: z.enum(['blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']).default('blue'),
   roundSeconds: z.union([z.literal(180), z.literal(240), z.literal(300)]).default(180),
   minWordLength: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
   rounds: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),

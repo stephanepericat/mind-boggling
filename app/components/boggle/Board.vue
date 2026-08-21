@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import type { BoggleBoard } from '../../../shared/games/boggle'
+import type { BoggleBoard, BoggleBoardColor } from '../../../shared/games/boggle'
+import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
 
-const props = defineProps<{ board: BoggleBoard, selectedPath?: number[], viewportFit?: boolean }>()
+const props = defineProps<{ board: BoggleBoard, color?: BoggleBoardColor, selectedPath?: number[], viewportFit?: boolean }>()
 const emit = defineEmits<{ select: [tileId: number] }>()
 
 const style = computed(() => ({ gridTemplateColumns: `repeat(${props.board.size}, minmax(0, 1fr))` }))
+const backgroundClass = computed(() => getBoggleBoardColorOption(props.color).backgroundClass)
 </script>
 
 <template>
   <div
-    class="boggle-board mx-auto grid w-full rounded-2xl bg-primary-700 shadow-xl"
-    :class="viewportFit ? 'boggle-board--viewport' : 'max-w-[38rem] gap-2 p-3 sm:gap-3 sm:p-5'"
+    class="boggle-board mx-auto grid w-full rounded-2xl shadow-xl"
+    :class="[backgroundClass, viewportFit ? 'boggle-board--viewport' : 'max-w-[38rem] gap-2 p-3 sm:gap-3 sm:p-5']"
     :style="style"
     role="grid"
     :aria-label="`${board.size} by ${board.size} Boggle board`"

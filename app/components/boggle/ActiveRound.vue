@@ -136,6 +136,7 @@ function endMatch() {
       </div>
       <BoggleBoard
         :board="match.board"
+        :color="match.settings.boardColor"
         :selected-path="selectedPath"
         viewport-fit
         class="mt-2"

@@ -1,5 +1,8 @@
+export type BoggleBoardColor = 'blue' | 'orange' | 'red' | 'green' | 'purple' | 'black' | 'turquoise'
+
 export interface BoggleSettings {
   boardSize: 4 | 5 | 6
+  boardColor: BoggleBoardColor
   roundSeconds: 180 | 240 | 300
   minWordLength: 2 | 3 | 4
   rounds: 1 | 2 | 3 | 4 | 5

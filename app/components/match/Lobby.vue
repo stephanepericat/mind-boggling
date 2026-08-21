@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MatchView } from '../../../shared/types/api'
+import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
 
 const props = defineProps<{ match: MatchView, connected: boolean, cancelling: boolean }>()
 const emit = defineEmits<{
@@ -16,6 +17,7 @@ const generating = ref(false)
 const viewer = computed(() => props.match.members.find(member => member.id === props.match.viewerMemberId)!)
 const isHost = computed(() => viewer.value?.role === 'host')
 const canStart = computed(() => props.match.members.length >= 2 && props.match.members.every(member => member.ready))
+const boardColorLabel = computed(() => getBoggleBoardColorOption(props.match.settings.boardColor).label)
 
 onMounted(() => {
   inviteUrl.value = sessionStorage.getItem(`mind-boggling:invite:${props.match.id}`) ?? ''
@@ -193,6 +195,13 @@ async function revokeInvite() {
             Timer
           </dt><dd class="font-mono font-bold">
             {{ match.settings.roundSeconds / 60 }} min
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Board color
+          </dt><dd class="font-mono font-bold">
+            {{ boardColorLabel }}
           </dd>
         </div>
         <div class="flex justify-between">
