@@ -112,16 +112,23 @@ export function findWordPath(board: BoggleBoard, input: string): number[] | null
 }
 
 function dictionaryHas(word: string): boolean {
+  const index = dictionaryLowerBound(word)
+  return englishWords[index] === word
+}
+
+function dictionaryLowerBound(value: string): number {
   let low = 0
-  let high = englishWords.length - 1
-  while (low <= high) {
+  let high = englishWords.length
+  while (low < high) {
     const middle = Math.floor((low + high) / 2)
-    const candidate = englishWords[middle]!
-    if (candidate === word) return true
-    if (candidate < word) low = middle + 1
-    else high = middle - 1
+    if (englishWords[middle]! < value) low = middle + 1
+    else high = middle
   }
-  return false
+  return low
+}
+
+function dictionaryHasPrefix(prefix: string): boolean {
+  return englishWords[dictionaryLowerBound(prefix)]?.startsWith(prefix) ?? false
 }
 
 export function validateWord(
@@ -161,6 +168,38 @@ export function scoreWord(word: string): number {
   if (word.length === 6) return 3
   if (word.length === 7) return 5
   return 11
+}
+
+export function findWordsOnBoard(board: BoggleBoard, minWordLength: number): string[] {
+  const words = new Set<string>()
+
+  const visit = (tileIndex: number, prefix: string, used: Set<number>): void => {
+    const tile = board.tiles[tileIndex]
+    if (!tile) return
+
+    const word = prefix + tile.letters.toLocaleLowerCase('en-US')
+    if (!dictionaryHasPrefix(word)) return
+    if (word.length >= minWordLength && /^[a-z]+$/.test(word) && dictionaryHas(word)) words.add(word)
+
+    const nextUsed = new Set(used).add(tileIndex)
+    for (const candidate of board.tiles) {
+      if (!nextUsed.has(candidate.id) && isAdjacent(board, tileIndex, candidate.id)) {
+        visit(candidate.id, word, nextUsed)
+      }
+    }
+  }
+
+  for (const tile of board.tiles) visit(tile.id, '', new Set())
+  return [...words].sort((left, right) => left.localeCompare(right))
+}
+
+export function findMissedWords(
+  board: BoggleBoard,
+  settings: BoggleSettings,
+  submissions: WordSubmission[]
+): string[] {
+  const submittedWords = new Set(submissions.map(submission => submission.word))
+  return findWordsOnBoard(board, settings.minWordLength).filter(word => !submittedWords.has(word))
 }
 
 export function scoreRound(submissions: WordSubmission[]): MemberRoundScore[] {

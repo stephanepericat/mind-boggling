@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   BOGGLE_ROUND_COUNTDOWN_MS,
   boggleSettingsSchema,
+  findMissedWords,
   findWordPath,
+  findWordsOnBoard,
   generateBoard,
   matchCommandSchema,
   scoreRound,
@@ -62,6 +64,13 @@ describe('Boggle board generation', () => {
     expect(left.tiles).toHaveLength(size * size)
     expect(new Set(left.tiles.map(tile => tile.id)).size).toBe(size * size)
   })
+
+  it('enumerates a large board without returning short words', () => {
+    const largeSettings = { ...settings, boardSize: 6 as const }
+    const words = findWordsOnBoard(generateBoard(largeSettings, 'large-board-seed'), largeSettings.minWordLength)
+    expect(words.length).toBeGreaterThan(0)
+    expect(words.every(word => word.length >= largeSettings.minWordLength)).toBe(true)
+  })
 })
 
 describe('word validation', () => {
@@ -89,6 +98,21 @@ describe('word validation', () => {
     expect(validateWord(board, settings, 'cat', [0, 2, 1]).rejectionCode).toBe('word_not_on_board')
     expect(validateWord(board, settings, 'at').rejectionCode).toBe('word_too_short')
     expect(validateWord(board, settings, 'zzzz').rejectionCode).toBe('word_not_in_dictionary')
+  })
+
+  it('finds valid board words and excludes words submitted by any player', () => {
+    const boardWords = findWordsOnBoard(board, settings.minWordLength)
+    expect(boardWords).toContain('cat')
+    expect(boardWords).toContain('quit')
+    expect(boardWords).not.toContain('at')
+
+    const missedWords = findMissedWords(board, settings, [
+      { memberId: 'one', displayName: 'One', word: 'cat', path: [0, 1, 2], submittedAt: 1 },
+      { memberId: 'two', displayName: 'Two', word: 'cat', path: [0, 1, 2], submittedAt: 2 }
+    ])
+    expect(missedWords).not.toContain('cat')
+    expect(missedWords).toContain('quit')
+    expect(missedWords).toEqual([...missedWords].sort((left, right) => left.localeCompare(right)))
   })
 })
 

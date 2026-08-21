@@ -24,6 +24,7 @@ export function projectRoomState(state: RoomState, viewerMemberId: string, conne
       cumulativeScore: active ? undefined : state.cumulativeScores[member.id] ?? 0
     })),
     roundScores: active ? undefined : state.roundScores,
+    missedWords: active ? undefined : state.missedWords,
     submittedWords: active
       ? state.submissions.filter(item => item.memberId === viewerMemberId).map(item => item.word)
       : undefined,

@@ -3,6 +3,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import {
   BOGGLE_ROUND_COUNTDOWN_MS,
+  findMissedWords,
   generateBoard,
   matchCommandSchema,
   scoreRound,
@@ -365,6 +366,7 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     state.board = generateBoard(state.settings, crypto.randomUUID())
     state.submissions = []
     state.roundScores = undefined
+    state.missedWords = undefined
     state.roundStartedAt = roundStartedAt
     state.roundEndsAt = roundStartedAt + state.settings.roundSeconds * 1000
     await this.ctx.storage.setAlarm(state.roundEndsAt)
@@ -382,6 +384,7 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       state.cumulativeScores[score.memberId] = (state.cumulativeScores[score.memberId] ?? 0) + score.points
     }
     state.roundScores = scores
+    state.missedWords = state.board ? findMissedWords(state.board, state.settings, state.submissions) : []
     state.status = 'round_results'
     state.sequence += 1
     this.writeState(state)

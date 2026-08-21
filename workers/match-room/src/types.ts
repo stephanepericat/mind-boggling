@@ -24,6 +24,7 @@ export interface RoomState {
   members: RoomMember[]
   submissions: WordSubmission[]
   roundScores?: MemberRoundScore[]
+  missedWords?: string[]
   cumulativeScores: Record<string, number>
   sequence: number
 }

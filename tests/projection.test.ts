@@ -31,15 +31,22 @@ describe('participant projections', () => {
     expect(view.roundEndsAt).toBe(181_000)
     expect(view.submittedWords).toEqual(['cat'])
     expect(view.roundScores).toBeUndefined()
+    expect(view.missedWords).toBeUndefined()
     expect(view.members.find(member => member.id === 'guest')?.wordCount).toBe(1)
     expect(view.members.every(member => member.cumulativeScore === undefined)).toBe(true)
     expect(JSON.stringify(view)).not.toContain('dog')
   })
 
   it('reveals scores after the round', () => {
-    const view = projectRoomState({ ...activeState, status: 'round_results', roundScores: [] }, 'host', new Set())
+    const view = projectRoomState({
+      ...activeState,
+      status: 'round_results',
+      roundScores: [],
+      missedWords: ['quit']
+    }, 'host', new Set())
     expect(view.submittedWords).toBeUndefined()
     expect(view.roundScores).toEqual([])
+    expect(view.missedWords).toEqual(['quit'])
     expect(view.members.map(member => member.cumulativeScore)).toEqual([10, 8])
   })
 })

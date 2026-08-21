@@ -60,6 +60,44 @@ const isLastRound = computed(() => props.match.currentRound >= props.match.setti
         </article>
       </div>
 
+      <section class="mt-7 rounded-xl border border-violet-200 bg-violet-50/60 p-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 class="font-display text-xl font-bold text-slate-950">
+              Words everyone missed
+            </h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Valid words that were hiding on this round's board.
+            </p>
+          </div>
+          <UBadge
+            color="neutral"
+            variant="soft"
+          >
+            {{ match.missedWords?.length ?? 0 }} words
+          </UBadge>
+        </div>
+        <ul
+          v-if="match.missedWords?.length"
+          class="mt-4 flex flex-wrap gap-2"
+          aria-label="Words missed by every player"
+        >
+          <li
+            v-for="word in match.missedWords"
+            :key="word"
+            class="rounded-md bg-white px-2.5 py-1.5 font-mono text-xs font-bold uppercase text-violet-800 shadow-sm ring-1 ring-violet-200"
+          >
+            {{ word }}
+          </li>
+        </ul>
+        <p
+          v-else
+          class="mt-4 text-sm font-medium text-emerald-700"
+        >
+          Nothing slipped through — every valid word was found.
+        </p>
+      </section>
+
       <div class="mt-7 flex items-center justify-between border-t border-slate-200 pt-6">
         <p class="text-sm text-slate-500">
           {{ isLastRound ? 'Ready for the final scoreboard.' : `${match.settings.rounds - match.currentRound} rounds remaining.` }}

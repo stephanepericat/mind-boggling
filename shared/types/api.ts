@@ -26,6 +26,7 @@ export interface MatchView {
   roundEndsAt?: number
   members: MatchMemberView[]
   roundScores?: MemberRoundScore[]
+  missedWords?: string[]
   submittedWords?: string[]
   sequence: number
   viewerMemberId: string
