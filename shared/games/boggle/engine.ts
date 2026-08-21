@@ -76,7 +76,7 @@ function pickWeightedMultiLetterTile(
   return available.pop()?.letters ?? 'Th'
 }
 
-function addMultiLetterTiles(letters: string[], size: 4 | 5 | 6, random: () => number): void {
+function addMultiLetterTiles(letters: string[], size: 4 | 5 | 6 | 7, random: () => number): void {
   const availableTiles = [...BOGGLE_MULTI_LETTER_TILES]
   const replaceableIndices = shuffled(
     letters.map((_, index) => index).filter(index => letters[index] !== 'Qu'),

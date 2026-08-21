@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const boggleSettingsSchema = z.object({
-  boardSize: z.union([z.literal(4), z.literal(5), z.literal(6)]).default(4),
+  boardSize: z.union([z.literal(4), z.literal(5), z.literal(6), z.literal(7)]).default(4),
   boardColor: z.enum(['random', 'blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']).default('random'),
   roundSeconds: z.union([z.literal(180), z.literal(240), z.literal(300)]).default(180),
   minWordLength: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
@@ -14,7 +14,7 @@ export const boggleSubmitWordSchema = z.object({
   type: z.literal('boggle.word.submit'),
   idempotencyKey: z.string().min(8).max(100),
   word: z.string().min(1).max(64),
-  path: z.array(z.number().int().min(0).max(35)).max(36).optional()
+  path: z.array(z.number().int().min(0).max(48)).max(49).optional()
 })
 
 export const matchCommandSchema = z.discriminatedUnion('type', [

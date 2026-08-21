@@ -67,4 +67,8 @@ const displayTiles = computed(() => rotateBoggleBoardTiles(props.board.tiles, pr
 .boggle-tile--6 {
   font-size: clamp(1.25rem, 6cqi, 1.875rem);
 }
+
+.boggle-tile--7 {
+  font-size: clamp(1rem, 5cqi, 1.5rem);
+}
 </style>

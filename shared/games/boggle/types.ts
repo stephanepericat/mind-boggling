@@ -4,7 +4,7 @@ export type BoggleBoardColor = typeof BOGGLE_BOARD_COLORS[number]
 export type BoggleBoardColorSetting = BoggleBoardColor | 'random'
 
 export interface BoggleSettings {
-  boardSize: 4 | 5 | 6
+  boardSize: 4 | 5 | 6 | 7
   boardColor: BoggleBoardColorSetting
   roundSeconds: 180 | 240 | 300
   minWordLength: 2 | 3 | 4
@@ -21,7 +21,7 @@ export interface BoggleTile {
 }
 
 export interface BoggleBoard {
-  size: 4 | 5 | 6
+  size: 4 | 5 | 6 | 7
   seed: string
   backgroundColor?: BoggleBoardColor
   distributionVersion: string

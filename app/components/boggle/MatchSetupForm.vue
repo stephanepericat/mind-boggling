@@ -16,7 +16,7 @@ const settings = reactive<BoggleSettings>({
 })
 
 const options = [
-  { key: 'boardSize' as const, title: 'Board size', help: 'Choose how many letter tiles are in play.', values: [{ label: '4 × 4', value: 4 }, { label: '5 × 5', value: 5 }, { label: '6 × 6', value: 6 }] },
+  { key: 'boardSize' as const, title: 'Board size', help: 'Choose how many letter tiles are in play.', values: [{ label: '4 × 4', value: 4 }, { label: '5 × 5', value: 5 }, { label: '6 × 6', value: 6 }, { label: '7 × 7', value: 7 }] },
   { key: 'roundSeconds' as const, title: 'Round time', help: 'Longer rounds give larger boards room to breathe.', values: [{ label: '3 minutes', value: 180 }, { label: '4 minutes', value: 240 }, { label: '5 minutes', value: 300 }] },
   { key: 'minWordLength' as const, title: 'Minimum valid word', help: 'Words shorter than this do not score.', values: [{ label: '2 characters', value: 2 }, { label: '3 characters', value: 3 }, { label: '4 characters', value: 4 }] },
   { key: 'rounds' as const, title: 'Rounds', help: 'Scores accumulate across the full match.', values: [1, 2, 3, 4, 5].map(value => ({ label: String(value), value })) }

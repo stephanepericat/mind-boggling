@@ -60,7 +60,8 @@ describe('Boggle settings', () => {
   })
 
   it('rejects values outside the supported settings', () => {
-    expect(() => boggleSettingsSchema.parse({ boardSize: 7 })).toThrow()
+    expect(() => boggleSettingsSchema.parse({ boardSize: 8 })).toThrow()
+    expect(boggleSettingsSchema.parse({ boardSize: 7 }).boardSize).toBe(7)
     expect(() => boggleSettingsSchema.parse({ roundSeconds: 60 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ minWordLength: 5 })).toThrow()
     expect(() => boggleSettingsSchema.parse({ rounds: 6 })).toThrow()
@@ -90,7 +91,7 @@ describe('match commands', () => {
 })
 
 describe('Boggle board generation', () => {
-  it.each([4, 5, 6] as const)('generates a deterministic %sx%s board', (size) => {
+  it.each([4, 5, 6, 7] as const)('generates a deterministic %sx%s board', (size) => {
     const sizedSettings = { ...settings, boardSize: size }
     const left = generateBoard(sizedSettings, 'stable-seed')
     const right = generateBoard(sizedSettings, 'stable-seed')
@@ -116,7 +117,7 @@ describe('Boggle board generation', () => {
   })
 
   it('avoids straight runs of three identical tiles across seeded boards', () => {
-    for (const size of [4, 5, 6] as const) {
+    for (const size of [4, 5, 6, 7] as const) {
       const sizedSettings = { ...settings, boardSize: size }
       for (let seed = 0; seed < 250; seed += 1) {
         expect(hasStraightTriple(generateBoard(sizedSettings, `repetition-${size}-${seed}`))).toBe(false)
@@ -143,6 +144,9 @@ describe('Boggle board generation', () => {
 
     const largeBoard = generateBoard({ ...settings, boardSize: 6 }, 'large-multi-letter-board')
     expect(largeBoard.tiles.filter(tile => tile.letters.length > 1).length).toBeGreaterThanOrEqual(2)
+
+    const largestBoard = generateBoard({ ...settings, boardSize: 7 }, 'largest-multi-letter-board')
+    expect(largestBoard.tiles.filter(tile => tile.letters.length > 1).length).toBeGreaterThanOrEqual(3)
   })
 
   it('enumerates a large board without returning short words', () => {

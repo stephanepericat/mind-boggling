@@ -19,6 +19,13 @@ const DICE_6 = [
   'DELRST', 'EINRST', 'GHLRST', 'MNPRST', 'NRTUVW', 'STWXYZ'
 ]
 
+const DICE_7 = [
+  ...DICE_6,
+  'AAEEGN', 'ACHOPS', 'AEGMNN', 'CEIPST', 'DEILRX',
+  'EEINSU', 'EHRTVW', 'EIOSST', 'ELRTTY', 'HIMNQU',
+  'HLNNRZ', 'NOOTUW', 'FIPRSY'
+]
+
 /**
  * Big Boggle's bonus cube uses common ordered pairs including Qu, Th, He,
  * Er, An, and In. Ch, Sh, and Ph broaden that idea for this digital version.
@@ -36,14 +43,16 @@ export const BOGGLE_MULTI_LETTER_TILES = [
   { letters: 'Sh', weight: 1 }
 ] as const
 
-export const BOGGLE_DISTRIBUTION_VERSION = 'en-US-balanced-dice-v2'
+export const BOGGLE_DISTRIBUTION_VERSION = 'en-US-balanced-dice-v3'
 
-export function diceForSize(size: 4 | 5 | 6): string[] {
+export function diceForSize(size: 4 | 5 | 6 | 7): string[] {
   if (size === 4) return DICE_4
   if (size === 5) return DICE_5
-  return DICE_6
+  if (size === 6) return DICE_6
+  return DICE_7
 }
 
-export function multiLetterTileCount(size: 4 | 5 | 6): number {
+export function multiLetterTileCount(size: 4 | 5 | 6 | 7): number {
+  if (size === 7) return 3
   return size === 6 ? 2 : 1
 }
