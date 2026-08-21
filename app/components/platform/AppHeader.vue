@@ -1,10 +1,17 @@
 <script setup lang="ts">
 const route = useRoute()
 const config = useRuntimeConfig()
-const links = computed(() => [
-  { label: 'Games', to: '/', active: route.path === '/' || route.path.startsWith('/games') },
-  { label: 'Match history', to: '/history', active: route.path.startsWith('/history') }
-])
+const { isLoaded, isSignedIn } = useAuth()
+const showAuthenticatedNavigation = computed(() => config.public.demoMode || (isLoaded.value && isSignedIn.value))
+const links = computed(() => {
+  const visibleLinks = [
+    { label: 'Games', to: '/', active: route.path === '/' || route.path.startsWith('/games') }
+  ]
+  if (showAuthenticatedNavigation.value) {
+    visibleLinks.push({ label: 'Match history', to: '/history', active: route.path.startsWith('/history') })
+  }
+  return visibleLinks
+})
 </script>
 
 <template>

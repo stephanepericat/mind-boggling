@@ -1,4 +1,5 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore } from '../games/boggle'
+import type { GameKey } from '../games/contract'
 
 export type MatchStatus = 'lobby' | 'active' | 'round_results' | 'finished' | 'cancelled'
 
@@ -40,6 +41,27 @@ export interface MatchHistoryItem {
   placement: number
   score: number
   participants: string[]
+}
+
+export interface LeaderboardGameOption {
+  key: GameKey
+  name: string
+}
+
+export interface AllTimeBestEntry {
+  rank: number
+  matchId: string
+  matchName: string
+  playerId: string
+  playerName: string
+  score: number
+  achievedAt: string
+}
+
+export interface AllTimeBestResponse {
+  games: LeaderboardGameOption[]
+  selectedGameKey: GameKey
+  entries: AllTimeBestEntry[]
 }
 
 export interface RealtimeEnvelope<T = unknown> {

@@ -20,15 +20,14 @@ function placement(value: number): string {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1120px] px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
+  <div>
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <p class="text-xs font-bold uppercase tracking-[0.18em] text-primary-700">
-          Participant-only
-        </p><h1 class="mt-2 font-display text-4xl font-extrabold tracking-tight">
-          Match history
-        </h1><p class="mt-2 text-slate-600">
-          Only games you played appear here.
+        <h2 class="font-display text-2xl font-bold">
+          Your completed matches
+        </h2>
+        <p class="mt-1 text-sm text-slate-600">
+          Only games you played appear in this list.
         </p>
       </div>
       <div class="flex items-end gap-2">
@@ -57,7 +56,7 @@ function placement(value: number): string {
 
     <div
       v-if="status === 'pending'"
-      class="grid min-h-64 place-items-center"
+      class="mt-6 grid min-h-64 place-items-center"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -69,11 +68,11 @@ function placement(value: number): string {
       color="error"
       title="History unavailable"
       description="Your completed matches could not be loaded."
-      class="mt-8"
+      class="mt-6"
     />
     <div
       v-else-if="data?.matches.length"
-      class="game-panel mt-8 overflow-hidden rounded-xl"
+      class="game-panel mt-6 overflow-hidden rounded-xl"
     >
       <div class="hidden grid-cols-[1.2fr_1fr_8rem_8rem] gap-4 border-b border-slate-200 bg-slate-50 px-6 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 sm:grid">
         <span>Match</span><span>Players</span><span>Place</span><span class="text-right">Score</span>
@@ -96,7 +95,7 @@ function placement(value: number): string {
     </div>
     <div
       v-else
-      class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center"
+      class="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center"
     >
       <UIcon
         name="i-lucide-trophy"
