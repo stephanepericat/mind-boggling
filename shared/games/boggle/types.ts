@@ -40,8 +40,10 @@ export interface WordSubmission {
 export type WordRejectionCode
   = | 'round_not_active'
     | 'word_too_short'
+    | 'word_invalid_characters'
     | 'word_not_on_board'
     | 'word_not_in_dictionary'
+    | 'word_path_invalid'
     | 'word_already_submitted'
 
 export interface WordValidation {

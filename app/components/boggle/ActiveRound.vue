@@ -140,7 +140,7 @@ function endMatch() {
         >
           Clear selection
         </button>
-        <span>Minimum {{ match.settings.minWordLength }} letters · Qu counts as two</span>
+        <span>Minimum {{ match.settings.minWordLength }} letters · Multi-letter tiles count as two</span>
       </div>
       <div class="mx-auto mt-2 flex max-w-[38rem] items-center justify-center gap-2">
         <UButton

@@ -32,7 +32,7 @@ The following are proposed MVP defaults. Keep them configurable at the game leve
 | Players | 2–8 |
 | Minimum valid word | Host chooses 2, 3, or 4 characters; default 3 |
 | Adjacency | Eight neighboring tiles; a tile may be used once per word |
-| `Qu` tile | One tile, contributes two letters |
+| Multi-letter tiles | Ordered pairs such as `Qu`, `Th`, and `Ph` contribute two letters |
 | Scoring | 3–4 letters: 1; 5: 2; 6: 3; 7: 5; 8+: 11 |
 | Duplicate words | A word found by more than one player scores zero for everyone |
 | Match length | Host chooses 1–5 rounds; default 3; winner has the highest cumulative score |
@@ -220,7 +220,7 @@ Create the first pure game module under `games/boggle/server/`:
 - Accept submissions only while the authoritative round is active.
 - Finalize a round transactionally: group duplicate words, assign zero where required, calculate per-player totals, persist ranks, and emit one finalized result.
 
-The MVP uses `an-array-of-english-words@2.0.0` (MIT) as its US English dictionary. Its stable version identifier is stored with each generated board so future dictionary updates do not make historical results ambiguous. Nothing in the platform core imports dictionary or board code.
+The MVP uses the normal-word and American-English tiers from `wordlist-english@1.2.1`, which are derived from SCOWL and exclude SCOWL's proper-name and abbreviation categories. Its stable version identifier is stored with each generated board so future dictionary updates do not make historical results ambiguous. Nothing in the platform core imports dictionary or board code.
 
 ## 7. Routes and user flows
 
@@ -357,7 +357,7 @@ Desktop is the required MVP target. Tablet and mobile layouts should remain stru
 ### Unit
 
 - Game registry uniqueness, manifest validation, capability handling, event evolution, and viewer projections.
-- Seeded board generation and `Qu` behavior.
+- Seeded, repetition-aware board generation and multi-letter tile behavior.
 - Board generation and adjacency validation at 4 × 4, 5 × 5, and 6 × 6.
 - Settings-schema acceptance and rejection for every allowed/disallowed board size, timer, and minimum word length.
 - Settings-schema acceptance and rejection for round counts 1–5, with 3 as the default.

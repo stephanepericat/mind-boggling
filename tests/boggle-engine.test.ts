@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   BOGGLE_ROUND_COUNTDOWN_MS,
   BOGGLE_BOARD_COLORS,
+  BOGGLE_DICTIONARY_VERSION,
+  BOGGLE_MULTI_LETTER_TILES,
   boggleSettingsSchema,
   findMissedWords,
   findWordPath,
   findWordsOnBoard,
   generateBoard,
   matchCommandSchema,
+  normalizeWord,
   scoreRound,
   scoreWord,
   validateWord
@@ -22,6 +25,29 @@ const settings: BoggleSettings = {
   rounds: 3,
   countdownWarning: true,
   locale: 'en-US'
+}
+
+const lineDirections = [
+  [0, 1],
+  [1, 0],
+  [1, 1],
+  [1, -1]
+] as const
+
+function hasStraightTriple(board: BoggleBoard): boolean {
+  for (const tile of board.tiles) {
+    for (const [rowStep, columnStep] of lineDirections) {
+      const middleRow = tile.row + rowStep
+      const middleColumn = tile.column + columnStep
+      const endRow = tile.row + rowStep * 2
+      const endColumn = tile.column + columnStep * 2
+      if (endRow < 0 || endRow >= board.size || endColumn < 0 || endColumn >= board.size) continue
+      const middle = board.tiles[middleRow * board.size + middleColumn]
+      const end = board.tiles[endRow * board.size + endColumn]
+      if (middle?.letters === tile.letters && end?.letters === tile.letters) return true
+    }
+  }
+  return false
 }
 
 describe('Boggle settings', () => {
@@ -71,6 +97,7 @@ describe('Boggle board generation', () => {
     expect(left).toEqual(right)
     expect(left.tiles).toHaveLength(size * size)
     expect(new Set(left.tiles.map(tile => tile.id)).size).toBe(size * size)
+    expect(left.dictionaryVersion).toBe(BOGGLE_DICTIONARY_VERSION)
   })
 
   it('resolves a random board color deterministically for each round seed', () => {
@@ -86,6 +113,36 @@ describe('Boggle board generation', () => {
 
     expect(generateBoard(fixedSettings, 'first-round').backgroundColor).toBe('orange')
     expect(generateBoard(fixedSettings, 'second-round').backgroundColor).toBe('orange')
+  })
+
+  it('avoids straight runs of three identical tiles across seeded boards', () => {
+    for (const size of [4, 5, 6] as const) {
+      const sizedSettings = { ...settings, boardSize: size }
+      for (let seed = 0; seed < 250; seed += 1) {
+        expect(hasStraightTriple(generateBoard(sizedSettings, `repetition-${size}-${seed}`))).toBe(false)
+      }
+    }
+  })
+
+  it('adds varied multi-letter tiles to every board', () => {
+    const seen = new Set<string>()
+    const counts = new Map<string, number>()
+    for (let seed = 0; seed < 300; seed += 1) {
+      const board = generateBoard(settings, `multi-letter-${seed}`)
+      const multiLetterTiles = board.tiles.filter(tile => tile.letters.length > 1)
+      expect(multiLetterTiles.length).toBeGreaterThanOrEqual(1)
+      for (const tile of multiLetterTiles) {
+        seen.add(tile.letters)
+        counts.set(tile.letters, (counts.get(tile.letters) ?? 0) + 1)
+      }
+    }
+
+    expect(seen).toEqual(new Set(BOGGLE_MULTI_LETTER_TILES.map(tile => tile.letters)))
+    expect(counts.get('Th')).toBeGreaterThan(30)
+    expect(counts.get('Ph')).toBeGreaterThan(30)
+
+    const largeBoard = generateBoard({ ...settings, boardSize: 6 }, 'large-multi-letter-board')
+    expect(largeBoard.tiles.filter(tile => tile.letters.length > 1).length).toBeGreaterThanOrEqual(2)
   })
 
   it('enumerates a large board without returning short words', () => {
@@ -116,9 +173,53 @@ describe('word validation', () => {
     expect(validateWord(board, settings, 'QUIT').valid).toBe(true)
   })
 
+  it('normalizes compatible Unicode input and reports invalid characters precisely', () => {
+    expect(normalizeWord('  ＣＡＴ  ')).toBe('cat')
+    expect(validateWord(board, settings, '  ＣＡＴ  ').valid).toBe(true)
+    expect(validateWord(board, settings, 'c@t').rejectionCode).toBe('word_invalid_characters')
+    expect(validateWord(board, settings, 'cat!').rejectionCode).toBe('word_invalid_characters')
+  })
+
+  it('uses the curated US-English dictionary without accepting list noise', () => {
+    const spellingBoard: BoggleBoard = {
+      ...board,
+      tiles: [
+        'C', 'O', 'L', 'O',
+        'X', 'X', 'R', 'X',
+        'X', 'X', 'X', 'X',
+        'X', 'X', 'X', 'X'
+      ].map((letters, id) => ({ id, row: Math.floor(id / 4), column: id % 4, letters }))
+    }
+
+    expect(validateWord(spellingBoard, settings, 'color', [0, 1, 2, 3, 6]).valid).toBe(true)
+    expect(validateWord(spellingBoard, settings, 'colour').rejectionCode).toBe('word_not_in_dictionary')
+    expect(validateWord(board, settings, 'thames').rejectionCode).toBe('word_not_in_dictionary')
+    expect(validateWord(board, settings, 'usa').rejectionCode).toBe('word_not_in_dictionary')
+    expect(validateWord(board, settings, 'zzz').rejectionCode).toBe('word_not_in_dictionary')
+  })
+
+  it('treats Th and Ph as ordered two-letter tiles', () => {
+    const multiLetterBoard: BoggleBoard = {
+      ...board,
+      tiles: [
+        'Th', 'A', 'T', 'X',
+        'Ph', 'A', 'S', 'E',
+        'R', 'I', 'N', 'G',
+        'L', 'O', 'C', 'K'
+      ].map((letters, id) => ({ id, row: Math.floor(id / 4), column: id % 4, letters }))
+    }
+
+    expect(findWordPath(multiLetterBoard, 'that')).toEqual([0, 1, 2])
+    expect(findWordPath(multiLetterBoard, 'phase')).not.toBeNull()
+    expect(validateWord(multiLetterBoard, settings, 'that').valid).toBe(true)
+    expect(validateWord(multiLetterBoard, settings, 'phase', [4, 5, 6, 7]).valid).toBe(true)
+  })
+
   it('rejects reused, non-adjacent, short, and unknown words', () => {
-    expect(validateWord(board, settings, 'cat', [0, 1, 0]).rejectionCode).toBe('word_not_on_board')
-    expect(validateWord(board, settings, 'cat', [0, 2, 1]).rejectionCode).toBe('word_not_on_board')
+    expect(validateWord(board, settings, 'cat', [0, 1, 0]).rejectionCode).toBe('word_path_invalid')
+    expect(validateWord(board, settings, 'cat', [0, 2, 1]).rejectionCode).toBe('word_path_invalid')
+    expect(validateWord(board, settings, 'cat', []).rejectionCode).toBe('word_path_invalid')
+    expect(validateWord(board, settings, 'cat', [0, 1, 99]).rejectionCode).toBe('word_path_invalid')
     expect(validateWord(board, settings, 'at').rejectionCode).toBe('word_too_short')
     expect(validateWord(board, settings, 'zzzz').rejectionCode).toBe('word_not_in_dictionary')
   })

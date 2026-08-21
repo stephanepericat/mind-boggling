@@ -30,10 +30,10 @@
     "@iconify-json/simple-icons": "^1.2.92",
     "@nuxt/ui": "^4.10.0",
     "@standard-schema/spec": "^1.1.0",
-    "an-array-of-english-words": "^2.0.0",
     "nuxt": "^4.5.1",
     "tailwindcss": "^4.3.3",
     "vue-router": "^5.2.0",
+    "wordlist-english": "^1.2.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

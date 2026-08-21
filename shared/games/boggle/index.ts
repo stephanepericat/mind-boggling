@@ -21,5 +21,7 @@ export const boggleManifest = {
 
 export * from './engine'
 export * from './schema'
+export { BOGGLE_DICTIONARY_VERSION } from './dictionary'
+export { BOGGLE_MULTI_LETTER_TILES } from './dice'
 export { BOGGLE_BOARD_COLORS } from './types'
 export type * from './types'

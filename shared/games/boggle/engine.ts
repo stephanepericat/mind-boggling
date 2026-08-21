@@ -1,5 +1,14 @@
-import englishWords from 'an-array-of-english-words/index.json' with { type: 'json' }
-import { BOGGLE_DISTRIBUTION_VERSION, diceForSize } from './dice'
+import {
+  BOGGLE_DISTRIBUTION_VERSION,
+  BOGGLE_MULTI_LETTER_TILES,
+  diceForSize,
+  multiLetterTileCount
+} from './dice'
+import {
+  BOGGLE_DICTIONARY_VERSION,
+  boggleDictionaryHas,
+  boggleDictionaryHasPrefix
+} from './dictionary'
 import { BOGGLE_BOARD_COLORS } from './types'
 import type {
   BoggleBoard,
@@ -9,8 +18,6 @@ import type {
   WordSubmission,
   WordValidation
 } from './types'
-
-export const BOGGLE_DICTIONARY_VERSION = 'an-array-of-english-words@2.0.0-en-US'
 
 function hashSeed(seed: string): number {
   let hash = 2166136261
@@ -43,22 +50,131 @@ function shuffled<T>(values: readonly T[], random: () => number): T[] {
   return result
 }
 
+const BOARD_CANDIDATE_COUNT = 48
+const LINE_DIRECTIONS = [
+  [0, 1],
+  [1, 0],
+  [1, 1],
+  [1, -1]
+] as const
+
+function pickWeightedMultiLetterTile(
+  available: typeof BOGGLE_MULTI_LETTER_TILES[number][],
+  random: () => number
+): string {
+  const totalWeight = available.reduce((total, tile) => total + tile.weight, 0)
+  let selection = random() * totalWeight
+  for (let index = 0; index < available.length; index += 1) {
+    const tile = available[index]!
+    selection -= tile.weight
+    if (selection < 0) {
+      available.splice(index, 1)
+      return tile.letters
+    }
+  }
+
+  return available.pop()?.letters ?? 'Th'
+}
+
+function addMultiLetterTiles(letters: string[], size: 4 | 5 | 6, random: () => number): void {
+  const availableTiles = [...BOGGLE_MULTI_LETTER_TILES]
+  const replaceableIndices = shuffled(
+    letters.map((_, index) => index).filter(index => letters[index] !== 'Qu'),
+    random
+  )
+
+  for (let index = 0; index < multiLetterTileCount(size); index += 1) {
+    const target = replaceableIndices[index]
+    if (target === undefined) return
+    letters[target] = pickWeightedMultiLetterTile(availableTiles, random)
+  }
+}
+
+function countStraightTriples(letters: readonly string[], size: number): number {
+  let triples = 0
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      const first = letters[row * size + column]
+      for (const [rowStep, columnStep] of LINE_DIRECTIONS) {
+        const endRow = row + rowStep * 2
+        const endColumn = column + columnStep * 2
+        if (endRow < 0 || endRow >= size || endColumn < 0 || endColumn >= size) continue
+        if (
+          first === letters[(row + rowStep) * size + column + columnStep]
+          && first === letters[endRow * size + endColumn]
+        ) triples += 1
+      }
+    }
+  }
+  return triples
+}
+
+function boardRepetitionScore(letters: readonly string[], size: number): number {
+  const counts = new Map<string, number>()
+  for (const tile of letters) counts.set(tile, (counts.get(tile) ?? 0) + 1)
+
+  // A few repeated common letters are useful, but dense boards feel less varied.
+  const duplicateAllowance = Math.ceil(letters.length / 8)
+  let score = [...counts.values()].reduce((total, count) => {
+    const excess = Math.max(0, count - duplicateAllowance)
+    return total + excess * excess * 8
+  }, 0)
+
+  // Nearby duplicates are noticeable even when they do not form a full run.
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      const current = letters[row * size + column]
+      for (const [rowStep, columnStep] of LINE_DIRECTIONS) {
+        const nextRow = row + rowStep
+        const nextColumn = column + columnStep
+        if (nextRow < 0 || nextRow >= size || nextColumn < 0 || nextColumn >= size) continue
+        if (current === letters[nextRow * size + nextColumn]) score += 4
+      }
+    }
+  }
+
+  // A straight run of three is possible with physical dice, but especially
+  // distracting on screen. Make any run dominate every softer tie-breaker.
+  return score + countStraightTriples(letters, size) * 10_000
+}
+
+function rollBoardCandidate(settings: BoggleSettings, random: () => number): string[] {
+  const letters = shuffled(diceForSize(settings.boardSize), random).map((die) => {
+    const face = die[Math.floor(random() * die.length)] ?? 'E'
+    return face === 'Q' ? 'Qu' : face
+  })
+  addMultiLetterTiles(letters, settings.boardSize, random)
+  return letters
+}
+
+function selectBoardLetters(settings: BoggleSettings, random: () => number): string[] {
+  let bestLetters: string[] = []
+  let bestScore = Number.POSITIVE_INFINITY
+
+  for (let candidate = 0; candidate < BOARD_CANDIDATE_COUNT; candidate += 1) {
+    const letters = rollBoardCandidate(settings, random)
+    const score = boardRepetitionScore(letters, settings.boardSize)
+    if (score < bestScore) {
+      bestLetters = letters
+      bestScore = score
+    }
+  }
+
+  return bestLetters
+}
+
 export function normalizeWord(input: string): string {
   return input.normalize('NFKC').trim().toLocaleLowerCase('en-US')
 }
 
 export function generateBoard(settings: BoggleSettings, seed: string): BoggleBoard {
   const random = randomFromSeed(seed)
-  const dice = shuffled(diceForSize(settings.boardSize), random)
-  const tiles = dice.map((die, index) => {
-    const face = die[Math.floor(random() * die.length)] ?? 'E'
-    return {
-      id: index,
-      row: Math.floor(index / settings.boardSize),
-      column: index % settings.boardSize,
-      letters: face === 'Q' ? 'Qu' : face
-    }
-  })
+  const tiles = selectBoardLetters(settings, random).map((letters, index) => ({
+    id: index,
+    row: Math.floor(index / settings.boardSize),
+    column: index % settings.boardSize,
+    letters
+  }))
   const backgroundColor = settings.boardColor === 'random'
     ? BOGGLE_BOARD_COLORS[Math.floor(random() * BOGGLE_BOARD_COLORS.length)]!
     : settings.boardColor
@@ -116,24 +232,14 @@ export function findWordPath(board: BoggleBoard, input: string): number[] | null
   return null
 }
 
-function dictionaryHas(word: string): boolean {
-  const index = dictionaryLowerBound(word)
-  return englishWords[index] === word
-}
+const VALID_WORD_PATTERN = /^[a-z]+$/
 
-function dictionaryLowerBound(value: string): number {
-  let low = 0
-  let high = englishWords.length
-  while (low < high) {
-    const middle = Math.floor((low + high) / 2)
-    if (englishWords[middle]! < value) low = middle + 1
-    else high = middle
-  }
-  return low
-}
-
-function dictionaryHasPrefix(prefix: string): boolean {
-  return englishWords[dictionaryLowerBound(prefix)]?.startsWith(prefix) ?? false
+function suppliedPathIsValid(board: BoggleBoard, word: string, path: number[]): boolean {
+  if (path.length === 0 || path.length > board.tiles.length) return false
+  if (path.some(tileId => !Number.isInteger(tileId) || tileId < 0 || tileId >= board.tiles.length)) return false
+  if (new Set(path).size !== path.length) return false
+  if (!path.every((tileId, index) => index === 0 || isAdjacent(board, path[index - 1]!, tileId))) return false
+  return pathSpells(board, path) === word
 }
 
 export function validateWord(
@@ -147,21 +253,24 @@ export function validateWord(
     return { valid: false, normalizedWord, path: [], rejectionCode: 'word_too_short' }
   }
 
-  if (!/^[a-z]+$/.test(normalizedWord) || !dictionaryHas(normalizedWord)) {
+  if (!VALID_WORD_PATTERN.test(normalizedWord)) {
+    return { valid: false, normalizedWord, path: [], rejectionCode: 'word_invalid_characters' }
+  }
+
+  if (!boggleDictionaryHas(normalizedWord)) {
     return { valid: false, normalizedWord, path: [], rejectionCode: 'word_not_in_dictionary' }
   }
 
-  let path = suppliedPath ?? findWordPath(board, normalizedWord) ?? []
-  if (suppliedPath) {
-    const unique = new Set(suppliedPath)
-    const legal = unique.size === suppliedPath.length
-      && suppliedPath.every((tile, index) => index === 0 || isAdjacent(board, suppliedPath[index - 1]!, tile))
-      && pathSpells(board, suppliedPath) === normalizedWord
-    if (!legal) path = []
+  if (suppliedPath !== undefined) {
+    if (!suppliedPathIsValid(board, normalizedWord, suppliedPath)) {
+      return { valid: false, normalizedWord, path: [], rejectionCode: 'word_path_invalid' }
+    }
+    return { valid: true, normalizedWord, path: suppliedPath }
   }
 
-  if (path.length === 0) {
-    return { valid: false, normalizedWord, path, rejectionCode: 'word_not_on_board' }
+  const path = findWordPath(board, normalizedWord)
+  if (!path) {
+    return { valid: false, normalizedWord, path: [], rejectionCode: 'word_not_on_board' }
   }
 
   return { valid: true, normalizedWord, path }
@@ -183,8 +292,8 @@ export function findWordsOnBoard(board: BoggleBoard, minWordLength: number): str
     if (!tile) return
 
     const word = prefix + tile.letters.toLocaleLowerCase('en-US')
-    if (!dictionaryHasPrefix(word)) return
-    if (word.length >= minWordLength && /^[a-z]+$/.test(word) && dictionaryHas(word)) words.add(word)
+    if (!boggleDictionaryHasPrefix(word)) return
+    if (word.length >= minWordLength && VALID_WORD_PATTERN.test(word) && boggleDictionaryHas(word)) words.add(word)
 
     const nextUsed = new Set(used).add(tileIndex)
     for (const candidate of board.tiles) {
