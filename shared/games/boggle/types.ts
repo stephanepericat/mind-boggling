@@ -1,8 +1,11 @@
-export type BoggleBoardColor = 'blue' | 'orange' | 'red' | 'green' | 'purple' | 'black' | 'turquoise'
+export const BOGGLE_BOARD_COLORS = ['blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise'] as const
+
+export type BoggleBoardColor = typeof BOGGLE_BOARD_COLORS[number]
+export type BoggleBoardColorSetting = BoggleBoardColor | 'random'
 
 export interface BoggleSettings {
   boardSize: 4 | 5 | 6
-  boardColor: BoggleBoardColor
+  boardColor: BoggleBoardColorSetting
   roundSeconds: 180 | 240 | 300
   minWordLength: 2 | 3 | 4
   rounds: 1 | 2 | 3 | 4 | 5
@@ -20,6 +23,7 @@ export interface BoggleTile {
 export interface BoggleBoard {
   size: 4 | 5 | 6
   seed: string
+  backgroundColor?: BoggleBoardColor
   distributionVersion: string
   dictionaryVersion: string
   tiles: BoggleTile[]

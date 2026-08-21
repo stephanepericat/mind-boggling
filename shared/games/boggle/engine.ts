@@ -1,5 +1,6 @@
 import englishWords from 'an-array-of-english-words/index.json' with { type: 'json' }
 import { BOGGLE_DISTRIBUTION_VERSION, diceForSize } from './dice'
+import { BOGGLE_BOARD_COLORS } from './types'
 import type {
   BoggleBoard,
   BoggleSettings,
@@ -58,10 +59,14 @@ export function generateBoard(settings: BoggleSettings, seed: string): BoggleBoa
       letters: face === 'Q' ? 'Qu' : face
     }
   })
+  const backgroundColor = settings.boardColor === 'random'
+    ? BOGGLE_BOARD_COLORS[Math.floor(random() * BOGGLE_BOARD_COLORS.length)]!
+    : settings.boardColor
 
   return {
     size: settings.boardSize,
     seed,
+    backgroundColor,
     distributionVersion: BOGGLE_DISTRIBUTION_VERSION,
     dictionaryVersion: BOGGLE_DICTIONARY_VERSION,
     tiles

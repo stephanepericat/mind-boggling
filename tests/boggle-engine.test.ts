@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BOGGLE_ROUND_COUNTDOWN_MS,
+  BOGGLE_BOARD_COLORS,
   boggleSettingsSchema,
   findMissedWords,
   findWordPath,
@@ -15,7 +16,7 @@ import type { BoggleBoard, BoggleSettings, WordSubmission } from '../shared/game
 
 const settings: BoggleSettings = {
   boardSize: 4,
-  boardColor: 'blue',
+  boardColor: 'random',
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
@@ -41,7 +42,7 @@ describe('Boggle settings', () => {
   })
 
   it('accepts every supported board color', () => {
-    const colors = ['blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']
+    const colors = ['random', 'blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']
     expect(colors.map(boardColor => boggleSettingsSchema.parse({ boardColor }).boardColor)).toEqual(colors)
   })
 
@@ -70,6 +71,21 @@ describe('Boggle board generation', () => {
     expect(left).toEqual(right)
     expect(left.tiles).toHaveLength(size * size)
     expect(new Set(left.tiles.map(tile => tile.id)).size).toBe(size * size)
+  })
+
+  it('resolves a random board color deterministically for each round seed', () => {
+    const left = generateBoard(settings, 'random-color-seed')
+    const right = generateBoard(settings, 'random-color-seed')
+
+    expect(BOGGLE_BOARD_COLORS).toContain(left.backgroundColor)
+    expect(right.backgroundColor).toBe(left.backgroundColor)
+  })
+
+  it('uses a fixed board color for every round when selected', () => {
+    const fixedSettings = { ...settings, boardColor: 'orange' as const }
+
+    expect(generateBoard(fixedSettings, 'first-round').backgroundColor).toBe('orange')
+    expect(generateBoard(fixedSettings, 'second-round').backgroundColor).toBe('orange')
   })
 
   it('enumerates a large board without returning short words', () => {

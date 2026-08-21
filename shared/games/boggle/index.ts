@@ -21,4 +21,5 @@ export const boggleManifest = {
 
 export * from './engine'
 export * from './schema'
+export { BOGGLE_BOARD_COLORS } from './types'
 export type * from './types'

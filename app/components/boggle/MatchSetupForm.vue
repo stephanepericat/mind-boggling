@@ -7,7 +7,7 @@ const submitting = ref(false)
 const matchName = ref('Family game night')
 const settings = reactive<BoggleSettings>({
   boardSize: 4,
-  boardColor: 'blue',
+  boardColor: 'random',
   roundSeconds: 180,
   minWordLength: 3,
   rounds: 3,
@@ -119,7 +119,7 @@ async function submit() {
             Board color
           </legend>
           <p class="mt-0.5 text-xs text-slate-500">
-            Choose the background behind the letter tiles.
+            Choose one background for every round, or let each round pick a random color.
           </p>
           <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <button
