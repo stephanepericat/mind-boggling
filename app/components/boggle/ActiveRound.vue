@@ -109,6 +109,7 @@ function endMatch() {
         <UInput
           v-model="word"
           size="xl"
+          autofocus
           autocomplete="off"
           autocapitalize="none"
           spellcheck="false"
