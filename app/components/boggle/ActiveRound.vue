@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { MatchView } from '../../../shared/types/api'
+import { turnBoggleBoard } from '../../utils/boggleBoardRotation'
+import type { BoggleBoardRotation } from '../../utils/boggleBoardRotation'
 
 const props = defineProps<{ match: MatchView, serverOffset: number, connected: boolean }>()
 const emit = defineEmits<{ submit: [word: string, path?: number[]], end: [] }>()
@@ -7,6 +9,7 @@ const emit = defineEmits<{ submit: [word: string, path?: number[]], end: [] }>()
 const now = ref(Date.now())
 const word = ref('')
 const selectedPath = ref<number[]>([])
+const boardRotation = shallowRef<BoggleBoardRotation>(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
 const remainingSeconds = computed(() => Math.max(0, Math.ceil(((props.match.roundEndsAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
@@ -46,6 +49,10 @@ function submit() {
   emit('submit', value, selectedPath.value.length ? selectedPath.value : undefined)
   word.value = ''
   selectedPath.value = []
+}
+
+function rotateBoard(direction: -1 | 1) {
+  boardRotation.value = turnBoggleBoard(boardRotation.value, direction)
 }
 
 function endMatch() {
@@ -135,9 +142,35 @@ function endMatch() {
         </button>
         <span>Minimum {{ match.settings.minWordLength }} letters · Qu counts as two</span>
       </div>
+      <div class="mx-auto mt-2 flex max-w-[38rem] items-center justify-center gap-2">
+        <UButton
+          type="button"
+          color="neutral"
+          variant="soft"
+          size="sm"
+          icon="i-lucide-rotate-ccw"
+          aria-label="Rotate board counter-clockwise"
+          @click="rotateBoard(-1)"
+        >
+          Rotate left
+        </UButton>
+        <span class="text-xs text-slate-500">Only rotates your view</span>
+        <UButton
+          type="button"
+          color="neutral"
+          variant="soft"
+          size="sm"
+          trailing-icon="i-lucide-rotate-cw"
+          aria-label="Rotate board clockwise"
+          @click="rotateBoard(1)"
+        >
+          Rotate right
+        </UButton>
+      </div>
       <BoggleBoard
         :board="match.board"
         :color="match.board.backgroundColor"
+        :rotation="boardRotation"
         :selected-path="selectedPath"
         viewport-fit
         class="mt-2"

@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import type { BoggleBoard, BoggleBoardColor } from '../../../shared/games/boggle'
 import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
+import { rotateBoggleBoardTiles } from '../../utils/boggleBoardRotation'
+import type { BoggleBoardRotation } from '../../utils/boggleBoardRotation'
 
-const props = defineProps<{ board: BoggleBoard, color?: BoggleBoardColor, selectedPath?: number[], viewportFit?: boolean }>()
+const props = defineProps<{
+  board: BoggleBoard
+  color?: BoggleBoardColor
+  rotation?: BoggleBoardRotation
+  selectedPath?: number[]
+  viewportFit?: boolean
+}>()
 const emit = defineEmits<{ select: [tileId: number] }>()
 
 const style = computed(() => ({ gridTemplateColumns: `repeat(${props.board.size}, minmax(0, 1fr))` }))
 const backgroundClass = computed(() => getBoggleBoardColorOption(props.color).backgroundClass)
+const displayTiles = computed(() => rotateBoggleBoardTiles(props.board.tiles, props.board.size, props.rotation ?? 0))
 </script>
 
 <template>
@@ -18,7 +27,7 @@ const backgroundClass = computed(() => getBoggleBoardColorOption(props.color).ba
     :aria-label="`${board.size} by ${board.size} Boggle board`"
   >
     <button
-      v-for="tile in board.tiles"
+      v-for="(tile, index) in displayTiles"
       :key="tile.id"
       type="button"
       role="gridcell"
@@ -27,7 +36,7 @@ const backgroundClass = computed(() => getBoggleBoardColorOption(props.color).ba
         `boggle-tile--${board.size}`,
         selectedPath?.includes(tile.id) ? 'border-amber-400 bg-amber-100 text-primary-800' : 'border-slate-300 hover:bg-primary-50'
       ]"
-      :aria-label="`Tile ${tile.row + 1}, ${tile.column + 1}: ${tile.letters}`"
+      :aria-label="`Tile ${Math.floor(index / board.size) + 1}, ${index % board.size + 1}: ${tile.letters}`"
       :aria-pressed="selectedPath?.includes(tile.id)"
       @click="emit('select', tile.id)"
     >
