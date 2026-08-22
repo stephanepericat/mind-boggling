@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { boggleSettingsSchema } from '../../../shared/games/boggle'
 import { requireSyncedActor } from '../../utils/auth'
 import { createMatch } from '../../utils/matches'
 
 const inputSchema = z.object({
   name: z.string(),
-  settings: boggleSettingsSchema
+  gameKey: z.enum(['boggle.v1', 'farkle.v1']),
+  settings: z.unknown()
 })
 
 export default defineEventHandler(async (event) => {

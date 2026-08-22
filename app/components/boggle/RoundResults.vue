@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import type { MatchView } from '../../../shared/types/api'
+import type { BoggleMatchView } from '../../../shared/types/api'
 
-const props = defineProps<{ match: MatchView }>()
+const props = defineProps<{ match: BoggleMatchView }>()
 const emit = defineEmits<{ continue: [] }>()
 const isHost = computed(() => props.match.viewerMemberId === props.match.hostMemberId)
-const isLastRound = computed(() => props.match.currentRound >= props.match.settings.rounds)
+const gameView = computed(() => props.match.game.view)
+const gameSettings = computed(() => props.match.game.settings)
+const isLastRound = computed(() => gameView.value.currentRound >= gameSettings.value.rounds)
 </script>
 
 <template>
   <div class="grid gap-6 lg:grid-cols-[1fr_23rem]">
     <section class="game-panel rounded-xl p-6 sm:p-8">
       <UBadge variant="soft">
-        Round {{ match.currentRound }} complete
+        Round {{ gameView.currentRound }} complete
       </UBadge>
       <h1 class="mt-3 font-display text-4xl font-extrabold tracking-tight">
         Words on the table.
@@ -22,7 +24,7 @@ const isLastRound = computed(() => props.match.currentRound >= props.match.setti
 
       <div class="mt-7 space-y-5">
         <article
-          v-for="score in match.roundScores"
+          v-for="score in gameView.roundScores"
           :key="score.memberId"
           class="rounded-xl border border-slate-200 p-5"
         >
@@ -74,16 +76,16 @@ const isLastRound = computed(() => props.match.currentRound >= props.match.setti
             color="neutral"
             variant="soft"
           >
-            {{ match.missedWords?.length ?? 0 }} words
+            {{ gameView.missedWords?.length ?? 0 }} words
           </UBadge>
         </div>
         <ul
-          v-if="match.missedWords?.length"
+          v-if="gameView.missedWords?.length"
           class="mt-4 flex flex-wrap gap-2"
           aria-label="Words missed by every player"
         >
           <li
-            v-for="word in match.missedWords"
+            v-for="word in gameView.missedWords"
             :key="word"
             class="rounded-md bg-white px-2.5 py-1.5 font-mono text-xs font-bold uppercase text-violet-800 shadow-sm ring-1 ring-violet-200"
           >
@@ -100,7 +102,7 @@ const isLastRound = computed(() => props.match.currentRound >= props.match.setti
 
       <div class="mt-7 flex items-center justify-between border-t border-slate-200 pt-6">
         <p class="text-sm text-slate-500">
-          {{ isLastRound ? 'Ready for the final scoreboard.' : `${match.settings.rounds - match.currentRound} rounds remaining.` }}
+          {{ isLastRound ? 'Ready for the final scoreboard.' : `${gameSettings.rounds - gameView.currentRound} rounds remaining.` }}
         </p>
         <UButton
           v-if="isHost"

@@ -30,7 +30,7 @@ async function submit() {
   try {
     const result = await $fetch<{ matchId: string, inviteUrl: string }>('/api/matches', {
       method: 'POST',
-      body: { name: matchName.value, settings }
+      body: { gameKey: 'boggle.v1', name: matchName.value, settings }
     })
     sessionStorage.setItem(`mind-boggling:invite:${result.matchId}`, result.inviteUrl)
     await navigateTo(`/matches/${result.matchId}`)

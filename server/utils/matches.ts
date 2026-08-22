@@ -1,5 +1,8 @@
 import type { H3Event } from 'h3'
 import { boggleSettingsSchema } from '../../shared/games/boggle'
+import { farkleSettingsSchema } from '../../shared/games/farkle'
+import { getGameManifest } from '../../shared/games/registry'
+import type { GameKey } from '../../shared/games/contract'
 import type { MatchHistoryItem } from '../../shared/types/api'
 import type { Actor } from './auth'
 import { getBindings, getRoom } from './cloudflare'
@@ -8,7 +11,7 @@ import { createOpaqueToken, sha256 } from './crypto'
 interface MatchRow {
   id: string
   name: string
-  game_key: 'boggle.v1'
+  game_key: GameKey
   status: string
   settings_json: string
   host_member_id: string
@@ -41,9 +44,13 @@ interface InviteIntentRow {
 export async function createMatch(
   event: H3Event,
   actor: Actor,
-  input: { name: string, settings: unknown }
+  input: { gameKey: 'boggle.v1' | 'farkle.v1', name: string, settings: unknown }
 ): Promise<{ matchId: string, inviteUrl: string }> {
-  const settings = boggleSettingsSchema.parse(input.settings)
+  const manifest = getGameManifest(input.gameKey)
+  if (!manifest) throw createError({ statusCode: 422, statusMessage: 'That game is not available.' })
+  const settings = input.gameKey === 'boggle.v1'
+    ? boggleSettingsSchema.parse(input.settings)
+    : farkleSettingsSchema.parse(input.settings)
   const name = input.name.normalize('NFKC').trim().replace(/\s+/g, ' ')
   if (name.length < 2 || name.length > 48) {
     throw createError({ statusCode: 422, statusMessage: 'Match name must be between 2 and 48 characters.' })
@@ -62,8 +69,8 @@ export async function createMatch(
     db.prepare(`
       INSERT INTO matches
         (id, name, game_key, game_version, host_member_id, status, settings_json, created_at)
-      VALUES (?1, ?2, 'boggle.v1', 1, ?3, 'lobby', ?4, ?5)
-    `).bind(matchId, name, hostMemberId, JSON.stringify(settings), now),
+      VALUES (?1, ?2, ?3, ?4, ?5, 'lobby', ?6, ?7)
+    `).bind(matchId, name, input.gameKey, manifest.version, hostMemberId, JSON.stringify(settings), now),
     db.prepare(`
       INSERT INTO match_members
         (id, match_id, clerk_user_id, display_name_snapshot, role, joined_at)
@@ -72,8 +79,8 @@ export async function createMatch(
     db.prepare(`
       INSERT INTO invites
         (id, match_id, token_digest, created_by_member_id, max_uses, expires_at, created_at)
-      VALUES (?1, ?2, ?3, ?4, 7, ?5, ?6)
-    `).bind(inviteId, matchId, tokenDigest, hostMemberId, expiresAt, now)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+    `).bind(inviteId, matchId, tokenDigest, hostMemberId, manifest.maxPlayers - 1, expiresAt, now)
   ])
 
   const initialization = await getRoom(event, matchId).fetch('https://match-room.internal/initialize', {
@@ -83,7 +90,7 @@ export async function createMatch(
       state: {
         id: matchId,
         name,
-        gameKey: 'boggle.v1',
+        gameKey: input.gameKey,
         settings,
         hostMemberId,
         members: [{
@@ -158,7 +165,10 @@ export async function redeemInviteIntent(
     const count = await db.prepare(`
       SELECT COUNT(*) AS count FROM match_members WHERE match_id = ?1 AND removed_at IS NULL
     `).bind(intent.match_id).first<{ count: number }>()
-    if ((count?.count ?? 0) >= 8) throw createError({ statusCode: 409, statusMessage: 'This match is full.' })
+    const manifest = getGameManifest(intent.game_key)
+    if (!manifest || (count?.count ?? 0) >= manifest.maxPlayers) {
+      throw createError({ statusCode: 409, statusMessage: 'This match is full.' })
+    }
     const memberId = crypto.randomUUID()
     const joinedAt = now.toISOString()
     await db.batch([
@@ -201,6 +211,8 @@ export async function createReplacementInvite(event: H3Event, matchId: string, m
   const db = getBindings(event).DB
   const match = await db.prepare('SELECT * FROM matches WHERE id = ?1').bind(matchId).first<MatchRow>()
   if (!match || match.status !== 'lobby') throw createError({ statusCode: 409, statusMessage: 'The match has already started.' })
+  const manifest = getGameManifest(match.game_key)
+  if (!manifest) throw createError({ statusCode: 409, statusMessage: 'This game is no longer available.' })
   const rawToken = createOpaqueToken()
   const now = new Date().toISOString()
   await db.batch([
@@ -208,12 +220,13 @@ export async function createReplacementInvite(event: H3Event, matchId: string, m
     db.prepare(`
       INSERT INTO invites
         (id, match_id, token_digest, created_by_member_id, max_uses, expires_at, created_at)
-      VALUES (?1, ?2, ?3, ?4, 7, ?5, ?6)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
     `).bind(
       crypto.randomUUID(),
       matchId,
       await sha256(rawToken),
       member.id,
+      manifest.maxPlayers - 1,
       new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       now
     )
@@ -248,7 +261,7 @@ export async function getHistory(event: H3Event, clerkUserId: string): Promise<M
   return rows.results.map(row => ({
     matchId: row.match_id,
     matchName: row.match_name,
-    gameName: row.game_key === 'boggle.v1' ? 'Boggle' : row.game_key,
+    gameName: getGameManifest(row.game_key)?.name ?? row.game_key,
     completedAt: row.completed_at,
     placement: row.placement,
     score: row.score,

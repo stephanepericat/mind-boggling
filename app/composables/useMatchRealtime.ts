@@ -1,4 +1,4 @@
-import type { MatchCommand } from '../../shared/games/boggle/schema'
+import type { MatchCommand } from '../../shared/platform/commands'
 import type { ChatMessage, ChatSendCommand } from '../../shared/platform/chat'
 import type { MatchView, RealtimeEnvelope } from '../../shared/types/api'
 

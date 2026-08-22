@@ -3,6 +3,7 @@ import type { MatchView } from '../../../shared/types/api'
 
 const props = defineProps<{ match: MatchView }>()
 const winner = computed(() => [...props.match.members].sort((left, right) => (right.cumulativeScore ?? 0) - (left.cumulativeScore ?? 0))[0])
+const playAgainPath = computed(() => `/games/${props.match.gameKey === 'boggle.v1' ? 'boggle' : 'farkle'}/new`)
 </script>
 
 <template>
@@ -16,11 +17,16 @@ const winner = computed(() => [...props.match.members].sort((left, right) => (ri
           {{ winner?.displayName }} wins!
         </h1>
         <p class="mt-4 max-w-xl text-primary-100">
-          {{ match.settings.rounds }} rounds, one shared board at a time, and every duplicate settled.
+          <template v-if="match.gameKey === 'boggle.v1'">
+            {{ match.game.settings.rounds }} rounds, one shared board at a time, and every duplicate settled.
+          </template>
+          <template v-else>
+            Six dice, one final turn for every opponent, and sudden death settled at the table.
+          </template>
         </p>
         <div class="mt-10 flex flex-wrap gap-3">
           <UButton
-            to="/games/boggle/new"
+            :to="playAgainPath"
             color="neutral"
             size="lg"
             icon="i-lucide-refresh-cw"
@@ -49,9 +55,9 @@ const winner = computed(() => [...props.match.members].sort((left, right) => (ri
         </div>
         <div class="border-x border-white/20 p-5">
           <p class="text-xs text-primary-200">
-            Rounds
+            {{ match.gameKey === 'boggle.v1' ? 'Rounds' : 'Turns' }}
           </p><p class="mt-1 font-mono text-2xl font-black">
-            {{ match.currentRound }}
+            {{ match.gameKey === 'boggle.v1' ? match.game.view.currentRound : match.game.view.turnNumber }}
           </p>
         </div>
         <div class="p-5">

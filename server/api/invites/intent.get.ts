@@ -1,6 +1,7 @@
 import { getInviteIntent } from '../../utils/matches'
 import { verifySignedValue } from '../../utils/crypto'
 import { getRuntimeSecret } from '../../utils/cloudflare'
+import { getGameManifest } from '../../../shared/games/registry'
 
 export default defineEventHandler(async (event) => {
   const signed = getCookie(event, 'mb_invite_intent')
@@ -14,7 +15,7 @@ export default defineEventHandler(async (event) => {
   return {
     invite: {
       matchName: intent.match_name,
-      gameName: intent.game_key === 'boggle.v1' ? 'Boggle' : intent.game_key,
+      gameName: getGameManifest(intent.game_key)?.name ?? intent.game_key,
       available: intent.match_status === 'lobby'
         && !intent.revoked_at
         && intent.use_count < intent.max_uses

@@ -1,5 +1,5 @@
 import { boggleManifest } from '../../shared/games/boggle'
-import { getGameManifest, gameRegistry } from '../../shared/games/registry'
+import { getGameManifest, getGameOptions } from '../../shared/games/registry'
 import { requireSyncedActor } from '../utils/auth'
 import { getAllTimeBest } from '../utils/leaderboard'
 
@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
-    games: [...gameRegistry.values()].map(manifest => ({ key: manifest.key, name: manifest.name })),
+    games: getGameOptions(),
     selectedGameKey: game.key,
     entries: await getAllTimeBest(event, game.key)
   }

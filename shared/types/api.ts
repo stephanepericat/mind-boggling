@@ -1,4 +1,5 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore } from '../games/boggle'
+import type { FarklePlayerView, FarkleSettings } from '../games/farkle'
 import type { GameKey } from '../games/contract'
 
 export type MatchStatus = 'lobby' | 'active' | 'round_results' | 'finished' | 'cancelled'
@@ -9,29 +10,42 @@ export interface MatchMemberView {
   role: 'host' | 'player'
   ready: boolean
   connected: boolean
-  wordCount: number
+  wordCount?: number
   cumulativeScore?: number
 }
 
-export interface MatchView {
+interface PlatformMatchView {
   id: string
   name: string
-  gameKey: 'boggle.v1'
   status: MatchStatus
-  settings: BoggleSettings
   hostMemberId: string
   inviteUrl?: string
+  members: MatchMemberView[]
+  sequence: number
+  viewerMemberId: string
+}
+
+export interface BogglePlayerView {
   currentRound: number
   board?: BoggleBoard
   roundStartedAt?: number
   roundEndsAt?: number
-  members: MatchMemberView[]
   roundScores?: MemberRoundScore[]
   missedWords?: string[]
   submittedWords?: string[]
-  sequence: number
-  viewerMemberId: string
 }
+
+export interface BoggleMatchView extends PlatformMatchView {
+  gameKey: 'boggle.v1'
+  game: { key: 'boggle.v1', settings: BoggleSettings, view: BogglePlayerView }
+}
+
+export interface FarkleMatchView extends PlatformMatchView {
+  gameKey: 'farkle.v1'
+  game: { key: 'farkle.v1', settings: FarkleSettings, view: FarklePlayerView }
+}
+
+export type MatchView = BoggleMatchView | FarkleMatchView
 
 export interface MatchHistoryItem {
   matchId: string

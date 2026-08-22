@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { platformMatchCommandSchema } from '../../platform/match'
 
 export const boggleSettingsSchema = z.object({
   boardSize: z.union([z.literal(4), z.literal(5), z.literal(6), z.literal(7)]).default(4),
@@ -17,34 +18,16 @@ export const boggleSubmitWordSchema = z.object({
   path: z.array(z.number().int().min(0).max(48)).max(49).optional()
 })
 
-export const matchCommandSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('member.ready'),
-    idempotencyKey: z.string().min(8).max(100),
-    ready: z.boolean()
-  }),
-  z.object({
-    type: z.literal('match.start'),
-    idempotencyKey: z.string().min(8).max(100)
-  }),
-  z.object({
-    type: z.literal('match.cancel'),
-    idempotencyKey: z.string().min(8).max(100)
-  }),
-  z.object({
-    type: z.literal('member.remove'),
-    idempotencyKey: z.string().min(8).max(100),
-    memberId: z.string().min(1).max(100)
-  }),
+export const boggleCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('boggle.round.continue'),
-    idempotencyKey: z.string().min(8).max(100)
-  }),
-  z.object({
-    type: z.literal('match.end'),
     idempotencyKey: z.string().min(8).max(100)
   }),
   boggleSubmitWordSchema
 ])
 
+export type BoggleCommand = z.infer<typeof boggleCommandSchema>
+
+// Compatibility export for existing Boggle consumers. New cross-game consumers use shared/platform/commands.
+export const matchCommandSchema = platformMatchCommandSchema.or(boggleCommandSchema)
 export type MatchCommand = z.infer<typeof matchCommandSchema>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { MatchView } from '../../../shared/types/api'
+import type { BoggleMatchView } from '../../../shared/types/api'
 import { turnBoggleBoard } from '../../utils/boggleBoardRotation'
 import type { BoggleBoardRotation } from '../../utils/boggleBoardRotation'
 
-const props = defineProps<{ match: MatchView, serverOffset: number, connected: boolean }>()
+const props = defineProps<{ match: BoggleMatchView, serverOffset: number, connected: boolean }>()
 const emit = defineEmits<{ submit: [word: string, path?: number[]], end: [] }>()
 
 const now = ref(Date.now())
@@ -12,14 +12,16 @@ const selectedPath = ref<number[]>([])
 const boardRotation = shallowRef<BoggleBoardRotation>(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
-const remainingSeconds = computed(() => Math.max(0, Math.ceil(((props.match.roundEndsAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
-const startsInSeconds = computed(() => Math.max(0, Math.ceil(((props.match.roundStartedAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
+const gameView = computed(() => props.match.game.view)
+const gameSettings = computed(() => props.match.game.settings)
+const remainingSeconds = computed(() => Math.max(0, Math.ceil(((gameView.value.roundEndsAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
+const startsInSeconds = computed(() => Math.max(0, Math.ceil(((gameView.value.roundStartedAt ?? now.value) - (now.value + props.serverOffset)) / 1000)))
 const hasRoundStarted = computed(() => startsInSeconds.value === 0)
 const minutes = computed(() => Math.floor(remainingSeconds.value / 60))
 const seconds = computed(() => remainingSeconds.value % 60)
-const progress = computed(() => remainingSeconds.value / props.match.settings.roundSeconds * 100)
+const progress = computed(() => remainingSeconds.value / gameSettings.value.roundSeconds * 100)
 const isHost = computed(() => props.match.members.find(member => member.id === props.match.viewerMemberId)?.role === 'host')
-const countdownWarningEnabled = computed(() => props.match.settings.countdownWarning !== false)
+const countdownWarningEnabled = computed(() => gameSettings.value.countdownWarning !== false)
 const isCountdownActive = computed(() => countdownWarningEnabled.value && remainingSeconds.value >= 1 && remainingSeconds.value <= 10)
 
 onMounted(() => {
@@ -37,7 +39,7 @@ function selectTile(tileId: number) {
     selectedPath.value = selectedPath.value.slice(0, existingIndex)
     return
   }
-  const tile = props.match.board?.tiles[tileId]
+  const tile = gameView.value.board?.tiles[tileId]
   if (!tile) return
   selectedPath.value = [...selectedPath.value, tileId]
   word.value += tile.letters
@@ -62,13 +64,13 @@ function endMatch() {
 
 <template>
   <BoggleRoundCountdown
-    v-if="match.board && !hasRoundStarted"
-    :round="match.currentRound"
-    :rounds="match.settings.rounds"
+    v-if="gameView.board && !hasRoundStarted"
+    :round="gameView.currentRound"
+    :rounds="gameSettings.rounds"
     :seconds="startsInSeconds"
   />
   <div
-    v-else-if="match.board"
+    v-else-if="gameView.board"
     class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]"
   >
     <section class="min-w-0">
@@ -78,7 +80,7 @@ function endMatch() {
       >
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.15em] text-primary-300">
-            Round {{ match.currentRound }} of {{ match.settings.rounds }}
+            Round {{ gameView.currentRound }} of {{ gameSettings.rounds }}
           </p><p class="mt-0.5 hidden text-sm text-slate-300 sm:block">
             Find connected words. Each tile can be used once.
           </p>
@@ -140,7 +142,7 @@ function endMatch() {
         >
           Clear selection
         </button>
-        <span>Minimum {{ match.settings.minWordLength }} letters · Multi-letter tiles count as two</span>
+        <span>Minimum {{ gameSettings.minWordLength }} letters · Multi-letter tiles count as two</span>
       </div>
       <div class="mx-auto mt-2 flex max-w-[38rem] items-center justify-center gap-2">
         <UButton
@@ -168,8 +170,8 @@ function endMatch() {
         </UButton>
       </div>
       <BoggleBoard
-        :board="match.board"
-        :color="match.board.backgroundColor"
+        :board="gameView.board"
+        :color="gameView.board.backgroundColor"
         :rotation="boardRotation"
         :selected-path="selectedPath"
         viewport-fit
@@ -209,15 +211,15 @@ function endMatch() {
           <h2 class="font-display text-lg font-bold">
             Your words
           </h2><UBadge variant="soft">
-            {{ match.submittedWords?.length ?? 0 }}
+            {{ gameView.submittedWords?.length ?? 0 }}
           </UBadge>
         </div>
         <div
-          v-if="match.submittedWords?.length"
+          v-if="gameView.submittedWords?.length"
           class="mt-3 flex flex-wrap gap-2"
         >
           <UBadge
-            v-for="submitted in match.submittedWords"
+            v-for="submitted in gameView.submittedWords"
             :key="submitted"
             color="neutral"
             variant="soft"

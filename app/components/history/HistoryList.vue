@@ -105,10 +105,10 @@ function placement(value: number): string {
       </h2><p class="mt-2 text-sm text-slate-500">
         Your next game night will start the scoreboard.
       </p><UButton
-        to="/games/boggle/new"
+        to="/"
         class="mt-6"
       >
-        Create a match
+        Choose a game
       </UButton>
     </div>
   </div>

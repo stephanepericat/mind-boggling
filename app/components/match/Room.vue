@@ -44,6 +44,22 @@ async function continueRound() {
   await send(command({ type: 'boggle.round.continue' }))
 }
 
+async function rollFarkle() {
+  await send(command({ type: 'farkle.roll' }))
+}
+
+async function continueFarkle(rollId: string, selectedDieIds: string[]) {
+  await send(command({ type: 'farkle.continue', rollId, selectedDieIds }))
+}
+
+async function bankFarkle(rollId: string, selectedDieIds: string[]) {
+  await send(command({ type: 'farkle.bank', rollId, selectedDieIds }))
+}
+
+async function skipFarkle(memberId: string) {
+  await send(command({ type: 'farkle.turn.skip', memberId }))
+}
+
 async function endMatch() {
   await send(command({ type: 'match.end' }))
 }
@@ -92,13 +108,13 @@ async function cancelMatch() {
     />
     <template v-else>
       <div
-        v-if="state.status !== 'active'"
+        v-if="state.gameKey === 'boggle.v1' && state.status !== 'active'"
         class="mb-7 overflow-x-auto pb-2"
       >
         <MatchMatchTrack
           :status="state.status"
-          :current-round="state.currentRound"
-          :rounds="state.settings.rounds"
+          :current-round="state.game.view.currentRound"
+          :rounds="state.game.settings.rounds"
         />
       </div>
       <MatchLobby
@@ -110,15 +126,25 @@ async function cancelMatch() {
         @cancel="cancelMatch"
       />
       <BoggleActiveRound
-        v-else-if="state.status === 'active'"
+        v-else-if="state.gameKey === 'boggle.v1' && state.status === 'active'"
         :match="state"
         :server-offset="serverOffset"
         :connected="connected"
         @submit="submitWord"
         @end="endMatch"
       />
+      <FarkleTable
+        v-else-if="state.gameKey === 'farkle.v1' && state.status === 'active'"
+        :match="state"
+        :server-offset="serverOffset"
+        :connected="connected"
+        @roll="rollFarkle"
+        @continue="continueFarkle"
+        @bank="bankFarkle"
+        @skip="skipFarkle"
+      />
       <BoggleRoundResults
-        v-else-if="state.status === 'round_results'"
+        v-else-if="state.gameKey === 'boggle.v1' && state.status === 'round_results'"
         :match="state"
         @continue="continueRound"
       />

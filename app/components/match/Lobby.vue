@@ -17,7 +17,9 @@ const generating = ref(false)
 const viewer = computed(() => props.match.members.find(member => member.id === props.match.viewerMemberId)!)
 const isHost = computed(() => viewer.value?.role === 'host')
 const canStart = computed(() => props.match.members.length >= 2 && props.match.members.every(member => member.ready))
-const boardColorLabel = computed(() => getBoggleBoardColorOption(props.match.settings.boardColor).label)
+const boardColorLabel = computed(() => props.match.gameKey === 'boggle.v1'
+  ? getBoggleBoardColorOption(props.match.game.settings.boardColor).label
+  : '')
 
 onMounted(() => {
   inviteUrl.value = sessionStorage.getItem(`mind-boggling:invite:${props.match.id}`) ?? ''
@@ -182,19 +184,22 @@ async function revokeInvite() {
         class="mt-3"
         @remove="emit('command', { type: 'member.remove', memberId: $event })"
       />
-      <dl class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm">
+      <dl
+        v-if="match.gameKey === 'boggle.v1'"
+        class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm"
+      >
         <div class="flex justify-between">
           <dt class="text-slate-500">
             Board
           </dt><dd class="font-mono font-bold">
-            {{ match.settings.boardSize }} × {{ match.settings.boardSize }}
+            {{ match.game.settings.boardSize }} × {{ match.game.settings.boardSize }}
           </dd>
         </div>
         <div class="flex justify-between">
           <dt class="text-slate-500">
             Timer
           </dt><dd class="font-mono font-bold">
-            {{ match.settings.roundSeconds / 60 }} min
+            {{ match.game.settings.roundSeconds / 60 }} min
           </dd>
         </div>
         <div class="flex justify-between">
@@ -208,21 +213,58 @@ async function revokeInvite() {
           <dt class="text-slate-500">
             Minimum
           </dt><dd class="font-mono font-bold">
-            {{ match.settings.minWordLength }} letters
+            {{ match.game.settings.minWordLength }} letters
           </dd>
         </div>
         <div class="flex justify-between">
           <dt class="text-slate-500">
             Rounds
           </dt><dd class="font-mono font-bold">
-            {{ match.settings.rounds }}
+            {{ match.game.settings.rounds }}
           </dd>
         </div>
         <div class="flex justify-between gap-4">
           <dt class="text-slate-500">
             Countdown warning
           </dt><dd class="font-mono font-bold">
-            {{ match.settings.countdownWarning !== false ? 'On' : 'Off' }}
+            {{ match.game.settings.countdownWarning !== false ? 'On' : 'Off' }}
+          </dd>
+        </div>
+      </dl>
+      <dl
+        v-else
+        class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm"
+      >
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Winning score
+          </dt>
+          <dd class="font-mono font-bold">
+            {{ match.game.settings.targetScore.toLocaleString() }}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Entry threshold
+          </dt>
+          <dd class="font-mono font-bold">
+            500 points
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Starting player
+          </dt>
+          <dd class="font-mono font-bold">
+            High roll
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Tie breaker
+          </dt>
+          <dd class="font-mono font-bold">
+            Sudden death
           </dd>
         </div>
       </dl>
