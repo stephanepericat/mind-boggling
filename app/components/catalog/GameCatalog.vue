@@ -67,10 +67,10 @@ const futureGames = [
       <article
         v-for="game in data?.games"
         :key="game.key"
-        class="game-panel relative overflow-hidden rounded-xl p-7"
+        class="game-panel relative overflow-hidden rounded-xl xl:grid xl:grid-cols-5"
       >
         <div
-          class="absolute inset-y-0 right-0 hidden w-2/5 bg-primary-600 xl:grid xl:place-items-center"
+          class="hidden bg-primary-600 xl:order-2 xl:col-span-2 xl:grid xl:place-items-center"
           aria-hidden="true"
         >
           <div
@@ -94,7 +94,7 @@ const futureGames = [
             >{{ face }}</span>
           </div>
         </div>
-        <div class="relative max-w-lg lg:pr-16">
+        <div class="relative min-w-0 p-7 xl:order-1 xl:col-span-3">
           <UBadge
             color="success"
             variant="soft"
