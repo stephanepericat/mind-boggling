@@ -82,7 +82,7 @@ function toggleDie(dieId: string) {
           <h1 class="mt-2 font-display text-3xl font-extrabold">
             {{ openingRound.tiedLeaderMemberIds.length === 1 ? `${openingWinner?.displayName} starts` : 'Top roll ties — roll again' }}
           </h1>
-          <DiceDiceScene
+          <DiceScene
             :dice="openingDice"
             :roll-id="openingRound.rollId"
             class="mt-5"
@@ -144,7 +144,7 @@ function toggleDie(dieId: string) {
       </div>
 
       <div class="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6">
-        <DiceDiceTray
+        <DiceTray
           v-if="currentRoll"
           :dice="currentRoll.dice"
           :roll-id="currentRoll.id"

@@ -14,7 +14,7 @@ const selection = computed(() => new Set(props.selectedDieIds))
 
 <template>
   <div>
-    <DiceDiceScene
+    <DiceScene
       :dice="dice"
       :roll-id="rollId"
     />
