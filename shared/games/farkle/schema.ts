@@ -9,6 +9,8 @@ export const farkleSettingsSchema = z.object({
 })
 
 export const farkleCommandSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('farkle.opening.roll'), idempotencyKey }),
+  z.object({ type: z.literal('farkle.game.start'), idempotencyKey }),
   z.object({ type: z.literal('farkle.roll'), idempotencyKey }),
   z.object({
     type: z.literal('farkle.continue'),

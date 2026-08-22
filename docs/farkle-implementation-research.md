@@ -64,7 +64,7 @@ Farkle has many house rules. The first release should bind every match to a name
 | --- | --- |
 | Players | 2–8 within the platform's existing hard ceiling |
 | Dice | Six fair six-sided dice |
-| Starting player | The server runs an animated one-die high-roll contest and rerolls tied leaders until one player starts |
+| Starting player | Every player clicks to roll one server-authoritative die; tied leaders reroll, and the winner clicks **Start game** |
 | Turn direction | Lobby join order, rotated so the opening-roll winner is first |
 | Opening threshold | A player must bank at least 500 points to enter the scoreboard |
 | Winning score | Host chooses 1,000, 5,000, or 10,000 points; default 10,000 |
@@ -128,7 +128,7 @@ When the final-turn queue empties with tied leaders, the game enters sudden deat
 1. **Three ones:** Score 300 in `classic.v1`, matching the cited published rules.
 2. **Ties:** Run complete-turn sudden-death cycles among the tied leaders until one player leads.
 3. **Disconnected active player:** After 60 continuous seconds disconnected, let the host skip a non-host active player. When the active player is the disconnected host, let any connected non-active player perform the skip. Skipping forfeits the current unbanked turn total and advances play as a zero-point turn.
-4. **Opening roll:** Run a server-authoritative high-roll contest. Roll one die for every player at match start, reroll only tied leaders, and animate every contest round before presenting the starting player.
+4. **Opening roll:** Run a player-driven, server-authoritative high-roll contest. Each eligible player clicks to roll one die, only tied leaders reroll, and the winning result remains visible until that winner clicks **Start game**.
 5. **Winning score:** Let the host choose 1,000, 5,000, or 10,000 points during match setup. Default to 10,000.
 
 Keep first-release settings intentionally small:
@@ -313,7 +313,7 @@ interface FarkleState {
 
 Stable physical die IDs (`d1` through `d6`) simplify selection, stale-command checks, animation, and hot-dice resets. `currentRoll.id` changes on every roll. A continue or bank command includes that roll ID so a delayed duplicate cannot act on newer dice.
 
-The opening contest stores every roll round so clients can animate the initial results and any tied-leader rerolls in order. The server resolves all opening rolls automatically when the host starts the match; players do not send separate opening-roll commands.
+The opening contest stores every roll round so clients can animate the initial results and any tied-leader rerolls in order. Starting the match creates an empty opening round. Each eligible player submits a separate idempotent opening-roll command; the Durable Object generates that player's die result. After a single leader remains, only that winner can submit the game-start command, so the winning result remains visible for the whole table until play begins.
 
 `FarkleSettings` remains alongside game state in the generic room envelope. Pass settings into command decisions, projections, and finalization so target checks use the persisted match value. Do not duplicate `targetScore` inside `FarkleState`, where it could drift from the validated settings.
 
@@ -323,7 +323,9 @@ The state may keep a bounded turn history for results and animation, but it shou
 
 ```ts
 type FarkleCommand
-  = { type: 'farkle.roll', idempotencyKey: string }
+  = { type: 'farkle.opening.roll', idempotencyKey: string }
+  | { type: 'farkle.game.start', idempotencyKey: string }
+  | { type: 'farkle.roll', idempotencyKey: string }
   | { type: 'farkle.continue', idempotencyKey: string, rollId: string, selectedDieIds: string[] }
   | { type: 'farkle.bank', idempotencyKey: string, rollId: string, selectedDieIds: string[] }
   | { type: 'farkle.turn.skip', idempotencyKey: string, memberId: string }
@@ -649,7 +651,7 @@ All Farkle dice and scores are public information. The projection still matters 
 ### State-machine tests
 
 - Default the target to 10,000, accept 1,000 and 5,000, and reject every unsupported target.
-- Resolve the opening high-roll contest automatically and reroll only tied leaders.
+- Let each eligible player trigger their server-authoritative opening roll, reroll only tied leaders, and require the winner to start play.
 - Reject actions from a non-active member.
 - Reject stale roll IDs and duplicate die IDs.
 - Preserve a turn total across Continue and hot dice.

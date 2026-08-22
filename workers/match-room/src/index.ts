@@ -16,13 +16,14 @@ import type { BoggleCommand } from '../../../shared/games/boggle/schema'
 import {
   bankFarkleTurn,
   continueFarkleTurn,
-  createFarkleState,
+  createFarkleOpeningState,
   FARKLE_DIE_IDS,
   FARKLE_RULES,
   farkleCommandSchema,
-  resolveOpeningRolls,
+  rollFarkleOpeningDie,
   rollFarkleDice,
   scoreSelection,
+  startFarkleGame,
   skipFarkleTurn
 } from '../../../shared/games/farkle'
 import type { FarkleCommand, FarkleSettings } from '../../../shared/games/farkle'
@@ -31,7 +32,6 @@ import type { ChatMessage, ChatSendCommand } from '../../../shared/platform/chat
 import { platformMatchCommandSchema } from '../../../shared/platform/match'
 import type { PlatformMatchCommand } from '../../../shared/platform/match'
 import type { MatchView, RealtimeEnvelope } from '../../../shared/types/api'
-import { uniformInt } from '../../../shared/random/uniform'
 import { projectRoomState } from './projection'
 import { WebCryptoRandomSource } from './random'
 import type {
@@ -481,7 +481,12 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     const game = state.game.state
     const now = Date.now()
     let result
-    if (command.type === 'farkle.roll') {
+    if (command.type === 'farkle.opening.roll') {
+      const die = this.rollFarkleDice([memberId], now).dice[0]!
+      result = rollFarkleOpeningDie(game, memberId, die.face, crypto.randomUUID())
+    } else if (command.type === 'farkle.game.start') {
+      result = startFarkleGame(game, memberId, now)
+    } else if (command.type === 'farkle.roll') {
       if (!game.turn || game.turn.memberId !== memberId || game.turn.currentRoll) return 'invalid_state'
       result = rollFarkleDice(game, memberId, this.rollFarkleDice(game.turn.availableDieIds, now), now)
     } else if (command.type === 'farkle.continue') {
@@ -494,10 +499,12 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       result = continueFarkleTurn(game, memberId, command.rollId, command.selectedDieIds, this.rollFarkleDice(nextDieIds, now), now)
     } else if (command.type === 'farkle.bank') {
       result = bankFarkleTurn(game, state.game.settings, memberId, command.rollId, command.selectedDieIds, now)
-    } else {
+    } else if (command.type === 'farkle.turn.skip') {
       const skipError = this.validateSkip(state, memberId, command.memberId, now)
       if (skipError) return skipError
       result = skipFarkleTurn(game, command.memberId, now)
+    } else {
+      return 'invalid_command'
     }
     if (result.error) return result.error
     state.game.state = result.state
@@ -522,14 +529,8 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
 
   private startFarkle(state: RoomState): void {
     if (state.game.key !== 'farkle.v1') return
-    const now = Date.now()
     const memberIds = state.members.map(member => member.id)
-    const openingRolls = resolveOpeningRolls(
-      memberIds,
-      () => uniformInt(this.random, 1, 6),
-      () => crypto.randomUUID()
-    )
-    state.game.state = createFarkleState(memberIds, openingRolls, now)
+    state.game.state = createFarkleOpeningState(memberIds, crypto.randomUUID())
     state.status = 'active'
   }
 

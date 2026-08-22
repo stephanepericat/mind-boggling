@@ -92,6 +92,7 @@ export function projectRoomState(
         hasEnteredScoreboard: game?.hasEnteredScoreboard ?? {},
         turn: game?.turn,
         openingRollRounds: game?.openingRollRounds ?? [],
+        openingWinnerMemberId: game?.openingWinnerMemberId,
         scoringOptions: game ? currentScoringOptions(game) : [],
         finalRound: game?.finalRound,
         suddenDeath: game?.suddenDeath,

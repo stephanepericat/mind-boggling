@@ -34,7 +34,7 @@ const selection = computed(() => new Set(props.selectedDieIds))
         :class="selection.has(die.id) ? 'border-2 border-primary-600 bg-primary-50 text-primary-700 -translate-y-1' : 'border-slate-200 text-slate-900 hover:border-slate-400'"
         @click="emit('toggle', die.id)"
       >
-        {{ die.face }}
+        <DicePips :face="die.face" />
       </button>
     </div>
     <p

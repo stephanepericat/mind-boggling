@@ -3,9 +3,12 @@ import type { DiceRoll } from '../shared/dice/types'
 import {
   bankFarkleTurn,
   continueFarkleTurn,
+  createFarkleOpeningState,
   createFarkleState,
   resolveOpeningRolls,
+  rollFarkleOpeningDie,
   rollFarkleDice,
+  startFarkleGame,
   skipFarkleTurn
 } from '../shared/games/farkle'
 
@@ -25,6 +28,32 @@ function state() {
 const settings = { rulesVersion: 'classic.v1', targetScore: 1000, locale: 'en-US' } as const
 
 describe('Farkle engine', () => {
+  it('lets players resolve the opening high roll and only the winner start play', () => {
+    let opening = createFarkleOpeningState(['a', 'b', 'c'], 'opening-1')
+    expect(opening.phase).toBe('opening-roll')
+    expect(opening.turn).toBeUndefined()
+
+    opening = rollFarkleOpeningDie(opening, 'a', 6, 'opening-2').state
+    opening = rollFarkleOpeningDie(opening, 'b', 6, 'opening-2').state
+    opening = rollFarkleOpeningDie(opening, 'c', 2, 'opening-2').state
+    expect(opening.openingRollRounds).toHaveLength(2)
+    expect(opening.openingRollRounds[1]?.tiedLeaderMemberIds).toEqual(['a', 'b'])
+    expect(rollFarkleOpeningDie(opening, 'c', 6, 'unused').error).toBe('not_in_opening_roll')
+
+    opening = rollFarkleOpeningDie(opening, 'a', 4, 'opening-3').state
+    opening = rollFarkleOpeningDie(opening, 'b', 5, 'opening-3').state
+    expect(opening.openingWinnerMemberId).toBe('b')
+    expect(opening.phase).toBe('opening-roll')
+    expect(opening.turn).toBeUndefined()
+    expect(opening.openingRollRounds[1]?.valuesByMemberId).toEqual({ a: 4, b: 5 })
+    expect(startFarkleGame(opening, 'a', 10).error).toBe('opening_winner_only')
+
+    const playing = startFarkleGame(opening, 'b', 10).state
+    expect(playing.phase).toBe('playing')
+    expect(playing.turnOrder).toEqual(['b', 'c', 'a'])
+    expect(playing.turn?.memberId).toBe('b')
+  })
+
   it('rerolls only tied opening leaders', () => {
     const values = [6, 6, 2, 3, 5]
     const rounds = resolveOpeningRolls(['a', 'b', 'c'], () => values.shift()!, () => `r${values.length}`)
@@ -40,6 +69,18 @@ describe('Farkle engine', () => {
     expect(continued.turn?.memberId).toBe('b')
     expect(continued.scores.a).toBe(0)
     expect(continued.stats.a?.farkles).toBe(1)
+    expect(continued.lastResolution).toMatchObject({
+      type: 'farkled',
+      memberId: 'a',
+      dice: [
+        { id: 'd1', face: 2 },
+        { id: 'd2', face: 3 },
+        { id: 'd3', face: 4 },
+        { id: 'd4', face: 6 },
+        { id: 'd5', face: 2 },
+        { id: 'd6', face: 3 }
+      ]
+    })
   })
 
   it('enforces the fixed 500-point opening threshold', () => {

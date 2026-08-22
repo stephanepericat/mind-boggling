@@ -48,6 +48,14 @@ async function rollFarkle() {
   await send(command({ type: 'farkle.roll' }))
 }
 
+async function rollFarkleOpeningDie() {
+  await send(command({ type: 'farkle.opening.roll' }))
+}
+
+async function startFarkleGame() {
+  await send(command({ type: 'farkle.game.start' }))
+}
+
 async function continueFarkle(rollId: string, selectedDieIds: string[]) {
   await send(command({ type: 'farkle.continue', rollId, selectedDieIds }))
 }
@@ -138,6 +146,8 @@ async function cancelMatch() {
         :match="state"
         :server-offset="serverOffset"
         :connected="connected"
+        @opening-roll="rollFarkleOpeningDie"
+        @start-game="startFarkleGame"
         @roll="rollFarkle"
         @continue="continueFarkle"
         @bank="bankFarkle"

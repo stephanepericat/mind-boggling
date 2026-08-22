@@ -27,6 +27,21 @@ function startTurn(state: FarkleState, memberId: string, now: number): void {
 
 const FARKLE_RULES_DIE_IDS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const
 
+function createBaseState(memberIds: readonly string[]): FarkleState {
+  if (memberIds.length < 2 || memberIds.length > 8) throw new Error('Farkle requires 2–8 players')
+  return {
+    rulesVersion: 'classic.v1',
+    phase: 'opening-roll',
+    turnOrder: [...memberIds],
+    activeTurnIndex: 0,
+    turnNumber: 0,
+    scores: Object.fromEntries(memberIds.map(memberId => [memberId, 0])),
+    hasEnteredScoreboard: Object.fromEntries(memberIds.map(memberId => [memberId, false])),
+    openingRollRounds: [],
+    stats: Object.fromEntries(memberIds.map(memberId => [memberId, { turns: 0, farkles: 0, highestBankedTurn: 0 }]))
+  }
+}
+
 function leaders(state: FarkleState, eligible = state.turnOrder): string[] {
   const highScore = Math.max(...eligible.map(memberId => state.scores[memberId] ?? 0))
   return eligible.filter(memberId => (state.scores[memberId] ?? 0) === highScore)
@@ -72,25 +87,67 @@ export function createFarkleState(
   openingRollRounds: readonly FarkleOpeningRollRound[],
   now: number
 ): FarkleState {
-  if (memberIds.length < 2 || memberIds.length > 8) throw new Error('Farkle requires 2–8 players')
   const finalRound = openingRollRounds.at(-1)
   const starter = finalRound?.tiedLeaderMemberIds.length === 1 ? finalRound.tiedLeaderMemberIds[0] : undefined
   if (!starter || !memberIds.includes(starter)) throw new Error('Opening rolls must resolve to one starting player')
   const starterIndex = memberIds.indexOf(starter)
   const turnOrder = [...memberIds.slice(starterIndex), ...memberIds.slice(0, starterIndex)]
-  const state: FarkleState = {
-    rulesVersion: 'classic.v1',
-    phase: 'playing',
-    turnOrder,
-    activeTurnIndex: 0,
-    turnNumber: 0,
-    scores: Object.fromEntries(memberIds.map(memberId => [memberId, 0])),
-    hasEnteredScoreboard: Object.fromEntries(memberIds.map(memberId => [memberId, false])),
-    openingRollRounds: [...openingRollRounds],
-    stats: Object.fromEntries(memberIds.map(memberId => [memberId, { turns: 0, farkles: 0, highestBankedTurn: 0 }]))
-  }
+  const state = createBaseState(memberIds)
+  state.phase = 'playing'
+  state.turnOrder = turnOrder
+  state.openingRollRounds = [...openingRollRounds]
+  state.openingWinnerMemberId = starter
   startTurn(state, starter, now)
   return state
+}
+
+export function createFarkleOpeningState(memberIds: readonly string[], rollId: string): FarkleState {
+  const state = createBaseState(memberIds)
+  state.openingRollRounds.push({
+    rollId,
+    valuesByMemberId: {},
+    tiedLeaderMemberIds: [...memberIds]
+  })
+  return state
+}
+
+export function rollFarkleOpeningDie(
+  state: FarkleState,
+  actorMemberId: string,
+  face: number,
+  nextRoundId: string
+): FarkleTransitionResult {
+  const next = clone(state)
+  if (next.phase !== 'opening-roll' || next.openingWinnerMemberId) return { state, error: 'invalid_state' }
+  const round = next.openingRollRounds.at(-1)
+  if (!round) return { state, error: 'invalid_state' }
+  if (!round.tiedLeaderMemberIds.includes(actorMemberId)) return { state, error: 'not_in_opening_roll' }
+  if (Object.hasOwn(round.valuesByMemberId, actorMemberId)) return { state, error: 'opening_roll_already_submitted' }
+  if (!Number.isInteger(face) || face < 1 || face > 6) return { state, error: 'invalid_roll' }
+
+  round.valuesByMemberId[actorMemberId] = face
+  if (round.tiedLeaderMemberIds.some(memberId => round.valuesByMemberId[memberId] === undefined)) return { state: next }
+
+  const high = Math.max(...round.tiedLeaderMemberIds.map(memberId => round.valuesByMemberId[memberId]!))
+  const leaders = round.tiedLeaderMemberIds.filter(memberId => round.valuesByMemberId[memberId] === high)
+  round.tiedLeaderMemberIds = leaders
+  if (leaders.length > 1) {
+    next.openingRollRounds.push({ rollId: nextRoundId, valuesByMemberId: {}, tiedLeaderMemberIds: leaders })
+  } else {
+    next.openingWinnerMemberId = leaders[0]
+  }
+  return { state: next }
+}
+
+export function startFarkleGame(state: FarkleState, actorMemberId: string, now: number): FarkleTransitionResult {
+  const next = clone(state)
+  if (next.phase !== 'opening-roll' || next.openingWinnerMemberId !== actorMemberId) return { state, error: 'opening_winner_only' }
+  const starterIndex = next.turnOrder.indexOf(actorMemberId)
+  if (starterIndex < 0) return { state, error: 'invalid_state' }
+  next.turnOrder = [...next.turnOrder.slice(starterIndex), ...next.turnOrder.slice(0, starterIndex)]
+  next.phase = 'playing'
+  startTurn(next, actorMemberId, now)
+  return { state: next }
 }
 
 export function resolveOpeningRolls(
@@ -114,7 +171,7 @@ function applyResolvedRoll(state: FarkleState, roll: DiceRoll<number>, now: numb
   if (hasScoringOption(roll.dice)) return
   const memberId = state.turn!.memberId
   state.stats[memberId]!.farkles += 1
-  state.lastResolution = { type: 'farkled', memberId, points: 0, at: now }
+  state.lastResolution = { type: 'farkled', memberId, points: 0, at: now, dice: structuredClone(roll.dice) }
   advanceAfterTurn(state, now)
 }
 

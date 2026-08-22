@@ -1,44 +1,68 @@
 <script setup lang="ts">
 import type { RolledDie } from '../../../shared/dice/types'
-import * as THREE from 'three'
+import {
+  CanvasTexture,
+  DirectionalLight,
+  Euler,
+  HemisphereLight,
+  Mesh,
+  MeshStandardMaterial,
+  OrthographicCamera,
+  Quaternion,
+  Scene,
+  SRGBColorSpace,
+  WebGLRenderer
+} from 'three'
+import type { BufferGeometry } from 'three'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 
 const props = defineProps<{ dice: RolledDie<number>[], rollId: string }>()
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
-let renderer: THREE.WebGLRenderer | null = null
-let camera: THREE.OrthographicCamera | null = null
-let scene: THREE.Scene | null = null
-let geometry: THREE.BoxGeometry | null = null
-let materials: THREE.MeshStandardMaterial[] = []
-let meshes: THREE.Mesh[] = []
-let textures: THREE.CanvasTexture[] = []
+let renderer: WebGLRenderer | null = null
+let camera: OrthographicCamera | null = null
+let scene: Scene | null = null
+let geometry: BufferGeometry | null = null
+let materials: MeshStandardMaterial[] = []
+let meshes: Mesh[] = []
+let textures: CanvasTexture[] = []
 let frame = 0
 let resizeObserver: ResizeObserver | null = null
 
-function faceTexture(value: number): THREE.CanvasTexture {
+const pipPositions: Record<number, Array<[number, number]>> = {
+  1: [[0, 0]],
+  2: [[-1, -1], [1, 1]],
+  3: [[-1, -1], [0, 0], [1, 1]],
+  4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+  5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+  6: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]]
+}
+
+function faceTexture(value: number): CanvasTexture {
   const surface = document.createElement('canvas')
-  surface.width = 128
-  surface.height = 128
+  surface.width = 256
+  surface.height = 256
   const context = surface.getContext('2d')!
-  context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, 128, 128)
-  context.fillStyle = value === 1 ? '#7c3aed' : '#111827'
-  context.font = '900 72px ui-monospace, monospace'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillText(String(value), 64, 68)
-  const texture = new THREE.CanvasTexture(surface)
-  texture.colorSpace = THREE.SRGBColorSpace
+  context.fillStyle = '#fffdf7'
+  context.fillRect(0, 0, 256, 256)
+  context.fillStyle = '#172033'
+  for (const [column, row] of pipPositions[value] ?? []) {
+    context.beginPath()
+    context.arc(128 + column * 66, 128 + row * 66, 18, 0, Math.PI * 2)
+    context.fill()
+  }
+  const texture = new CanvasTexture(surface)
+  texture.colorSpace = SRGBColorSpace
   return texture
 }
 
-function targetQuaternion(face: number): THREE.Quaternion {
-  const rotation = new THREE.Euler()
+function targetQuaternion(face: number): Quaternion {
+  const rotation = new Euler()
   if (face === 2) rotation.x = Math.PI / 2
   if (face === 3) rotation.y = -Math.PI / 2
   if (face === 4) rotation.y = Math.PI / 2
   if (face === 5) rotation.x = -Math.PI / 2
   if (face === 6) rotation.y = Math.PI
-  return new THREE.Quaternion().setFromEuler(rotation)
+  return new Quaternion().setFromEuler(rotation)
 }
 
 function hash(value: string): number {
@@ -76,27 +100,52 @@ function animateRoll() {
   cancelAnimationFrame(frame)
   arrangeMeshes()
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const starts = props.dice.map((die) => {
+  const plans = props.dice.map((die, index) => {
     const seed = hash(`${props.rollId}:${die.id}`)
-    return new THREE.Quaternion().setFromEuler(new THREE.Euler(
-      (seed % 7 + 2) * Math.PI,
-      ((seed >>> 4) % 9 + 2) * Math.PI,
-      ((seed >>> 8) % 5) * Math.PI
-    ))
+    return {
+      delay: index * 34,
+      startX: meshes[index]!.position.x + ((seed & 1) === 0 ? -1 : 1) * (0.45 + (seed % 30) / 100),
+      startY: 0.22 + ((seed >>> 5) % 20) / 100,
+      phaseX: ((seed >>> 9) % 100) / 100 * Math.PI,
+      phaseY: ((seed >>> 16) % 100) / 100 * Math.PI,
+      phaseZ: ((seed >>> 22) % 100) / 100 * Math.PI,
+      turnsX: 3 + seed % 3,
+      turnsY: 4 + (seed >>> 4) % 3,
+      turnsZ: 2 + (seed >>> 8) % 2
+    }
   })
   const targets = props.dice.map(die => targetQuaternion(die.face))
   const startedAt = performance.now()
+  const spin = new Quaternion()
+  const spinEuler = new Euler()
+  const duration = 1_050
 
   const draw = (time: number) => {
-    const elapsed = reducedMotion ? 1 : Math.min((time - startedAt) / 850, 1)
-    const eased = 1 - (1 - elapsed) ** 3
+    let complete = true
     props.dice.forEach((_, index) => {
+      const plan = plans[index]!
+      const elapsed = reducedMotion ? 1 : Math.min(Math.max((time - startedAt - plan.delay) / duration, 0), 1)
+      const eased = 1 - (1 - elapsed) ** 3
+      const remaining = 1 - eased
       const mesh = meshes[index]!
-      mesh.quaternion.slerpQuaternions(starts[index]!, targets[index]!, eased)
-      mesh.position.y = reducedMotion ? 0 : Math.sin(Math.PI * elapsed) * (0.7 + (index % 2) * 0.12)
+      const targetX = -(props.dice.length - 1) * 1.45 / 2 + index * 1.45
+      spinEuler.set(
+        (plan.turnsX * Math.PI * 2 + plan.phaseX) * remaining,
+        (plan.turnsY * Math.PI * 2 + plan.phaseY) * remaining,
+        (plan.turnsZ * Math.PI * 2 + plan.phaseZ) * remaining
+      )
+      spin.setFromEuler(spinEuler)
+      mesh.quaternion.copy(targets[index]!).multiply(spin)
+      mesh.position.x = plan.startX + (targetX - plan.startX) * eased
+      const flight = Math.sin(Math.PI * elapsed) * 0.3
+      const settleProgress = Math.max(0, (elapsed - 0.72) / 0.28)
+      const bounce = Math.abs(Math.sin(settleProgress * Math.PI * 3)) * (1 - settleProgress) * 0.11
+      mesh.position.y = reducedMotion ? 0 : plan.startY * remaining + flight + bounce
+      mesh.position.z = reducedMotion ? 0 : Math.sin(Math.PI * elapsed) * 0.28
+      if (elapsed < 1) complete = false
     })
     renderer!.render(scene!, camera!)
-    if (elapsed < 1) frame = requestAnimationFrame(draw)
+    if (!complete) frame = requestAnimationFrame(draw)
   }
   frame = requestAnimationFrame(draw)
 }
@@ -104,23 +153,23 @@ function animateRoll() {
 onMounted(() => {
   if (!canvas.value) return
   try {
-    renderer = new THREE.WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true })
+    renderer = new WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true })
   } catch {
     return
   }
-  scene = new THREE.Scene()
-  camera = new THREE.OrthographicCamera(-4, 4, 2, -2, 0.1, 100)
+  scene = new Scene()
+  camera = new OrthographicCamera(-4, 4, 2, -2, 0.1, 100)
   camera.position.set(0, 0, 10)
-  geometry = new THREE.BoxGeometry(1, 1, 1, 3, 3, 3)
+  geometry = new RoundedBoxGeometry(1, 1, 1, 6, 0.13)
   textures = [3, 4, 2, 5, 1, 6].map(faceTexture)
-  materials = textures.map(map => new THREE.MeshStandardMaterial({ map, roughness: 0.55, metalness: 0.03 }))
+  materials = textures.map(map => new MeshStandardMaterial({ map, roughness: 0.68, metalness: 0.01 }))
   meshes = Array.from({ length: 6 }, () => {
-    const mesh = new THREE.Mesh(geometry!, materials)
+    const mesh = new Mesh(geometry!, materials)
     scene!.add(mesh)
     return mesh
   })
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.4))
-  const light = new THREE.DirectionalLight(0xffffff, 3)
+  scene.add(new HemisphereLight(0xffffff, 0x334155, 2.6))
+  const light = new DirectionalLight(0xffffff, 3.2)
   light.position.set(-3, 5, 8)
   scene.add(light)
   resizeObserver = new ResizeObserver(resize)
@@ -128,8 +177,7 @@ onMounted(() => {
   animateRoll()
 })
 
-watch(() => props.rollId, animateRoll)
-watch(() => props.dice.length, arrangeMeshes)
+watch(() => `${props.rollId}:${props.dice.map(die => `${die.id}-${die.face}`).join(':')}`, animateRoll)
 
 onScopeDispose(() => {
   cancelAnimationFrame(frame)
@@ -144,7 +192,7 @@ onScopeDispose(() => {
 <template>
   <canvas
     ref="canvas"
-    class="h-36 w-full"
+    class="h-44 w-full sm:h-48"
     aria-hidden="true"
   />
 </template>

@@ -53,6 +53,7 @@ export interface FarkleState {
   hasEnteredScoreboard: Record<string, boolean>
   turn?: FarkleTurn
   openingRollRounds: FarkleOpeningRollRound[]
+  openingWinnerMemberId?: string
   finalRound?: {
     triggeredByMemberId: string
     remainingMemberIds: string[]
@@ -63,12 +64,9 @@ export interface FarkleState {
     remainingMemberIds: string[]
   }
   winnerMemberId?: string
-  lastResolution?: {
-    type: 'banked' | 'farkled' | 'skipped'
-    memberId: string
-    points: number
-    at: number
-  }
+  lastResolution?:
+    | { type: 'banked' | 'skipped', memberId: string, points: number, at: number }
+    | { type: 'farkled', memberId: string, points: 0, at: number, dice: NumericRolledDie[] }
   stats: Record<string, FarklePlayerStats>
 }
 
@@ -87,6 +85,7 @@ export interface FarklePlayerView {
   hasEnteredScoreboard: Record<string, boolean>
   turn?: FarkleTurn
   openingRollRounds: FarkleOpeningRollRound[]
+  openingWinnerMemberId?: string
   scoringOptions: FarkleScoringOption[]
   finalRound?: FarkleState['finalRound']
   suddenDeath?: FarkleState['suddenDeath']
