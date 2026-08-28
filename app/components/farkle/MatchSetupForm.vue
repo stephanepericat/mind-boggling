@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type { FarkleSettings } from '../../../shared/games/farkle'
+import { FARKLE_DICE_COLOR_OPTIONS, getFarkleDiceColorOption, resolveDiceAppearance } from '../../utils/diceAppearance'
 
 const toast = useToast()
 const submitting = shallowRef(false)
 const matchName = shallowRef('Family Farkle night')
-const settings = reactive<FarkleSettings>({ rulesVersion: 'classic.v1', targetScore: 10000, locale: 'en-US' })
+const settings = reactive<FarkleSettings>({ rulesVersion: 'classic.v1', targetScore: 10000, diceColor: 'ivory', locale: 'en-US' })
 const targetOptions = [
   { value: 1000 as const, label: '1,000', description: 'A quick, high-pressure match.' },
   { value: 5000 as const, label: '5,000', description: 'A balanced game-night length.' },
   { value: 10000 as const, label: '10,000', description: 'The full classic game.' }
 ]
+const selectedDiceColor = computed(() => getFarkleDiceColorOption(settings.diceColor))
+const previewAppearance = computed(() => resolveDiceAppearance(settings.diceColor, 'farkle-setup-preview'))
 
 async function submit() {
   submitting.value = true
@@ -91,6 +94,33 @@ async function submit() {
           </div>
         </fieldset>
 
+        <fieldset class="mt-7 border-t border-slate-200 pt-5">
+          <legend class="font-display text-xl font-bold">
+            Dice color
+          </legend>
+          <p class="mt-1 text-sm text-slate-500">
+            Pick one color for the table. Random chooses a new color for every roll.
+          </p>
+          <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <button
+              v-for="option in FARKLE_DICE_COLOR_OPTIONS"
+              :key="option.value"
+              type="button"
+              :aria-pressed="settings.diceColor === option.value"
+              class="flex min-h-11 items-center gap-2 rounded-lg border bg-slate-50 px-3 text-left text-xs font-bold transition"
+              :class="settings.diceColor === option.value ? 'border-2 border-primary-600 text-primary-700' : 'border-slate-200 text-slate-600 hover:border-slate-400'"
+              @click="settings.diceColor = option.value"
+            >
+              <span
+                class="size-4 shrink-0 rounded-full ring-1 ring-black/15"
+                :class="option.swatchClass"
+                aria-hidden="true"
+              />
+              {{ option.label }}
+            </button>
+          </div>
+        </fieldset>
+
         <div class="mt-7 flex flex-col items-start justify-between gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
           <p class="text-xs text-slate-500">
             <UIcon
@@ -126,8 +156,9 @@ async function submit() {
           <span
             v-for="face in 6"
             :key="face"
-            class="grid aspect-square place-items-center rounded-xl bg-white font-mono text-3xl font-black text-slate-950 shadow"
-          >{{ face }}</span>
+            class="grid aspect-square place-items-center rounded-xl shadow ring-1 ring-black/10"
+            :style="{ backgroundColor: previewAppearance.bodyColor, color: previewAppearance.pipColor }"
+          ><DicePips :face="face" /></span>
         </div>
         <dl class="mt-6 space-y-3 text-sm">
           <div class="flex justify-between">
@@ -149,6 +180,13 @@ async function submit() {
               Three 1s
             </dt><dd class="font-mono font-bold">
               300 pts
+            </dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-slate-400">
+              Dice color
+            </dt><dd class="font-mono font-bold">
+              {{ selectedDiceColor.label }}
             </dd>
           </div>
           <div class="flex justify-between">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { FARKLE_RULES, FARKLE_SCORE_TABLE } from '#shared/games/farkle/rules'
+import { FARKLE_RULES } from '#shared/games/farkle/rules'
 
 const props = defineProps<{ targetScore: 1000 | 5000 | 10000 }>()
+const open = defineModel<boolean>('open', { default: false })
 const format = new Intl.NumberFormat('en-US')
 
 const playRules = computed(() => [
@@ -20,54 +21,33 @@ const playRules = computed(() => [
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-xl bg-slate-950 text-white">
-    <div class="p-5">
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-primary-300">
-        Classic.v1
-      </p>
-      <h2 class="mt-1 font-display text-xl font-bold">
-        Complete rules
-      </h2>
-      <dl class="mt-5 space-y-4 text-sm">
+  <UModal
+    v-model:open="open"
+    title="Complete Farkle rules"
+    description="Classic.v1 · the rules used at this table"
+  >
+    <template #body>
+      <dl class="space-y-5 text-sm">
         <div
           v-for="([title, description]) in playRules"
           :key="title"
         >
-          <dt class="font-bold text-white">
+          <dt class="font-bold text-slate-950">
             {{ title }}
           </dt>
-          <dd class="mt-1 leading-relaxed text-slate-300">
+          <dd class="mt-1 leading-relaxed text-slate-600">
             {{ description }}
           </dd>
         </div>
       </dl>
-    </div>
+    </template>
 
-    <div class="border-t border-white/10 p-5">
-      <h3 class="font-display text-lg font-bold">
-        Complete scoring
-      </h3>
-      <table class="mt-3 w-full text-left text-sm">
-        <thead class="sr-only">
-          <tr><th>Selection</th><th>Score</th></tr>
-        </thead>
-        <tbody class="divide-y divide-white/10">
-          <tr
-            v-for="rule in FARKLE_SCORE_TABLE"
-            :key="rule.selection"
-          >
-            <td class="py-2 pr-3 text-slate-300">
-              {{ rule.selection }}
-            </td>
-            <td class="py-2 text-right font-mono font-bold text-white">
-              {{ format.format(rule.score) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="mt-4 border-t border-white/10 pt-4 text-xs leading-relaxed text-slate-400">
-        Scoring groups cannot cross roll boundaries. You may keep any legal scoring subset; you do not have to take the highest immediate score. Three 1s score 300—not 1,000—in this ruleset.
-      </p>
-    </div>
-  </section>
+    <template #footer="{ close }">
+      <div class="flex w-full justify-end">
+        <UButton @click="close">
+          Back to the game
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

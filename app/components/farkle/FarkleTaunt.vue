@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { NumericRolledDie } from '#shared/games/farkle/types'
+import type { DiceAppearance } from '../../utils/diceAppearance'
 
 const props = defineProps<{
-  dice: NumericRolledDie[]
+  dice: readonly NumericRolledDie[]
   playerName: string
   rollId: string
+  appearance: DiceAppearance
 }>()
 
 const taunts = [
@@ -39,6 +41,8 @@ const taunt = computed(() => {
       <DiceScene
         :dice="dice"
         :roll-id="rollId"
+        :body-color="appearance.bodyColor"
+        :pip-color="appearance.pipColor"
         class="farkle-dice mt-3"
       />
       <p class="farkle-taunt mt-2 font-display text-xl font-bold text-primary-200">

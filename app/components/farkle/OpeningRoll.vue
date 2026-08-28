@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { FarkleMatchView } from '../../../shared/types/api'
+import { useDiceRollSound } from '../../composables/useDiceRollSound'
+import { resolveDiceAppearance } from '../../utils/diceAppearance'
 
 const props = defineProps<{ match: FarkleMatchView }>()
 const emit = defineEmits<{ roll: [], start: [] }>()
@@ -20,7 +22,13 @@ const displayedMemberIds = computed(() => [...new Set([
   ...Object.keys(currentRound.value?.valuesByMemberId ?? {})
 ])])
 const animationKey = computed(() => `${currentRound.value?.rollId ?? 'opening'}:${dice.value.map(die => `${die.id}-${die.face}`).join(':')}`)
+const appearance = computed(() => resolveDiceAppearance(props.match.game.settings.diceColor, currentRound.value?.rollId ?? 'opening'))
+const rollSoundEvent = computed(() => dice.value.length > 0
+  ? { id: animationKey.value, diceCount: dice.value.length }
+  : null)
 const previousRounds = computed(() => game.value.openingRollRounds.slice(0, -1))
+
+useDiceRollSound(rollSoundEvent)
 
 function memberName(memberId: string): string {
   return props.match.members.find(member => member.id === memberId)?.displayName ?? 'Player'
@@ -46,6 +54,8 @@ function memberName(memberId: string): string {
         v-if="dice.length"
         :dice="dice"
         :roll-id="animationKey"
+        :body-color="appearance.bodyColor"
+        :pip-color="appearance.pipColor"
       />
       <div
         v-else

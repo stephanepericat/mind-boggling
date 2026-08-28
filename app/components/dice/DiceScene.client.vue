@@ -16,7 +16,12 @@ import {
 import type { BufferGeometry } from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 
-const props = defineProps<{ dice: RolledDie<number>[], rollId: string }>()
+const props = defineProps<{
+  dice: readonly RolledDie<number>[]
+  rollId: string
+  bodyColor?: string
+  pipColor?: string
+}>()
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 let renderer: WebGLRenderer | null = null
 let camera: OrthographicCamera | null = null
@@ -37,14 +42,14 @@ const pipPositions: Record<number, Array<[number, number]>> = {
   6: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]]
 }
 
-function faceTexture(value: number): CanvasTexture {
+function faceTexture(value: number, bodyColor: string, pipColor: string): CanvasTexture {
   const surface = document.createElement('canvas')
   surface.width = 256
   surface.height = 256
   const context = surface.getContext('2d')!
-  context.fillStyle = '#fffdf7'
+  context.fillStyle = bodyColor
   context.fillRect(0, 0, 256, 256)
-  context.fillStyle = '#172033'
+  context.fillStyle = pipColor
   for (const [column, row] of pipPositions[value] ?? []) {
     context.beginPath()
     context.arc(128 + column * 66, 128 + row * 66, 18, 0, Math.PI * 2)
@@ -53,6 +58,16 @@ function faceTexture(value: number): CanvasTexture {
   const texture = new CanvasTexture(surface)
   texture.colorSpace = SRGBColorSpace
   return texture
+}
+
+function rebuildMaterials() {
+  textures.forEach(texture => texture.dispose())
+  materials.forEach(material => material.dispose())
+  textures = [3, 4, 2, 5, 1, 6].map(face => faceTexture(face, props.bodyColor ?? '#fffdf7', props.pipColor ?? '#172033'))
+  materials = textures.map(map => new MeshStandardMaterial({ map, roughness: 0.68, metalness: 0.01 }))
+  meshes.forEach((mesh) => {
+    mesh.material = materials
+  })
 }
 
 function targetQuaternion(face: number): Quaternion {
@@ -161,8 +176,7 @@ onMounted(() => {
   camera = new OrthographicCamera(-4, 4, 2, -2, 0.1, 100)
   camera.position.set(0, 0, 10)
   geometry = new RoundedBoxGeometry(1, 1, 1, 6, 0.13)
-  textures = [3, 4, 2, 5, 1, 6].map(faceTexture)
-  materials = textures.map(map => new MeshStandardMaterial({ map, roughness: 0.68, metalness: 0.01 }))
+  rebuildMaterials()
   meshes = Array.from({ length: 6 }, () => {
     const mesh = new Mesh(geometry!, materials)
     scene!.add(mesh)
@@ -178,6 +192,11 @@ onMounted(() => {
 })
 
 watch(() => `${props.rollId}:${props.dice.map(die => `${die.id}-${die.face}`).join(':')}`, animateRoll)
+watch(() => `${props.bodyColor ?? '#fffdf7'}:${props.pipColor ?? '#172033'}`, () => {
+  if (!renderer) return
+  rebuildMaterials()
+  animateRoll()
+})
 
 onScopeDispose(() => {
   cancelAnimationFrame(frame)

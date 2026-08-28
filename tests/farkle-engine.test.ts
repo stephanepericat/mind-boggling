@@ -5,6 +5,7 @@ import {
   continueFarkleTurn,
   createFarkleOpeningState,
   createFarkleState,
+  farkleSettingsSchema,
   resolveOpeningRolls,
   rollFarkleOpeningDie,
   rollFarkleDice,
@@ -25,9 +26,16 @@ function state() {
   return createFarkleState(['a', 'b'], [{ rollId: 'opening', valuesByMemberId: { a: 6, b: 2 }, tiedLeaderMemberIds: ['a'] }], 1)
 }
 
-const settings = { rulesVersion: 'classic.v1', targetScore: 1000, locale: 'en-US' } as const
+const settings = { rulesVersion: 'classic.v1', targetScore: 1000, diceColor: 'ivory', locale: 'en-US' } as const
 
 describe('Farkle engine', () => {
+  it('defaults legacy settings to ivory and accepts every supported dice color', () => {
+    expect(farkleSettingsSchema.parse({}).diceColor).toBe('ivory')
+    const colors = ['random', 'ivory', 'blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']
+    expect(colors.map(diceColor => farkleSettingsSchema.parse({ diceColor }).diceColor)).toEqual(colors)
+    expect(() => farkleSettingsSchema.parse({ diceColor: 'pink' })).toThrow()
+  })
+
   it('lets players resolve the opening high roll and only the winner start play', () => {
     let opening = createFarkleOpeningState(['a', 'b', 'c'], 'opening-1')
     expect(opening.phase).toBe('opening-roll')
@@ -69,9 +77,17 @@ describe('Farkle engine', () => {
     expect(continued.turn?.memberId).toBe('b')
     expect(continued.scores.a).toBe(0)
     expect(continued.stats.a?.farkles).toBe(1)
+    expect(continued.lastHotDice).toEqual({
+      memberId: 'a',
+      sourceRollId: 'r1',
+      nextRollId: 'r2',
+      points: 2500,
+      at: 3
+    })
     expect(continued.lastResolution).toMatchObject({
       type: 'farkled',
       memberId: 'a',
+      rollId: 'r2',
       dice: [
         { id: 'd1', face: 2 },
         { id: 'd2', face: 3 },
@@ -81,6 +97,12 @@ describe('Farkle engine', () => {
         { id: 'd6', face: 3 }
       ]
     })
+  })
+
+  it('does not emit hot dice when scoring dice remain available', () => {
+    const first = rollFarkleDice(state(), 'a', roll('r1', ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'], [1, 2, 3, 4, 5, 6]), 2).state
+    const continued = continueFarkleTurn(first, 'a', 'r1', ['d1'], roll('r2', ['d2', 'd3', 'd4', 'd5', 'd6'], [1, 2, 3, 4, 6]), 3).state
+    expect(continued.lastHotDice).toBeUndefined()
   })
 
   it('enforces the fixed 500-point opening threshold', () => {

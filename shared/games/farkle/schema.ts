@@ -5,6 +5,7 @@ const idempotencyKey = z.string().min(8).max(100)
 export const farkleSettingsSchema = z.object({
   rulesVersion: z.literal('classic.v1').default('classic.v1'),
   targetScore: z.union([z.literal(1000), z.literal(5000), z.literal(10000)]).default(10000),
+  diceColor: z.enum(['random', 'ivory', 'blue', 'orange', 'red', 'green', 'purple', 'black', 'turquoise']).default('ivory'),
   locale: z.literal('en-US').default('en-US')
 })
 

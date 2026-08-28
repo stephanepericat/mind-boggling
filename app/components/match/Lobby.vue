@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MatchView } from '../../../shared/types/api'
 import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
+import { getFarkleDiceColorOption } from '../../utils/diceAppearance'
 
 const props = defineProps<{ match: MatchView, connected: boolean, cancelling: boolean }>()
 const emit = defineEmits<{
@@ -19,6 +20,9 @@ const isHost = computed(() => viewer.value?.role === 'host')
 const canStart = computed(() => props.match.members.length >= 2 && props.match.members.every(member => member.ready))
 const boardColorLabel = computed(() => props.match.gameKey === 'boggle.v1'
   ? getBoggleBoardColorOption(props.match.game.settings.boardColor).label
+  : '')
+const diceColorLabel = computed(() => props.match.gameKey === 'farkle.v1'
+  ? getFarkleDiceColorOption(props.match.game.settings.diceColor).label
   : '')
 
 onMounted(() => {
@@ -249,6 +253,14 @@ async function revokeInvite() {
           </dt>
           <dd class="font-mono font-bold">
             500 points
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Dice color
+          </dt>
+          <dd class="font-mono font-bold">
+            {{ diceColorLabel }}
           </dd>
         </div>
         <div class="flex justify-between">

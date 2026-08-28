@@ -171,7 +171,7 @@ function applyResolvedRoll(state: FarkleState, roll: DiceRoll<number>, now: numb
   if (hasScoringOption(roll.dice)) return
   const memberId = state.turn!.memberId
   state.stats[memberId]!.farkles += 1
-  state.lastResolution = { type: 'farkled', memberId, points: 0, at: now, dice: structuredClone(roll.dice) }
+  state.lastResolution = { type: 'farkled', memberId, points: 0, at: now, rollId: roll.id, dice: structuredClone(roll.dice) }
   advanceAfterTurn(state, now)
 }
 
@@ -210,9 +210,19 @@ export function continueFarkleTurn(
   next.turn!.unbankedScore += validation.score.score
   next.turn!.committedSelections.push({ rollId, dieIds: [...selectedDieIds], score: validation.score.score, breakdown: validation.score.breakdown })
   const remaining = validation.roll.dice.filter(die => !selectedDieIds.includes(die.id)).map(die => die.id)
-  next.turn!.availableDieIds = remaining.length === 0 ? [...FARKLE_RULES_DIE_IDS] : remaining
+  const hasHotDice = remaining.length === 0
+  next.turn!.availableDieIds = hasHotDice ? [...FARKLE_RULES_DIE_IDS] : remaining
   next.turn!.currentRoll = undefined
   if (nextRoll.dice.map(die => die.id).join(',') !== next.turn!.availableDieIds.join(',')) return { state, error: 'invalid_roll' }
+  if (hasHotDice) {
+    next.lastHotDice = {
+      memberId: actorMemberId,
+      sourceRollId: rollId,
+      nextRollId: nextRoll.id,
+      points: next.turn!.unbankedScore,
+      at: now
+    }
+  }
   applyResolvedRoll(next, nextRoll, now)
   return { state: next }
 }

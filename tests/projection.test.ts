@@ -68,6 +68,7 @@ describe('participant projections', () => {
       [{ rollId: 'opening', valuesByMemberId: { host: 2, guest: 6 }, tiedLeaderMemberIds: ['guest'] }],
       1_000
     )
+    game.lastHotDice = { memberId: 'guest', sourceRollId: 'roll-1', nextRollId: 'roll-2', points: 1_500, at: 2_500 }
     const state: RoomState = {
       stateVersion: 2,
       id: 'farkle-1',
@@ -85,7 +86,7 @@ describe('participant projections', () => {
       },
       game: {
         key: 'farkle.v1',
-        settings: { rulesVersion: 'classic.v1', targetScore: 5000, locale: 'en-US' },
+        settings: { rulesVersion: 'classic.v1', targetScore: 5000, diceColor: 'ivory', locale: 'en-US' },
         state: game
       }
     }
@@ -95,6 +96,7 @@ describe('participant projections', () => {
     expect(view.game.view.activeMemberId).toBe('guest')
     expect(view.game.view.skipEligibleAt).toBe(62_000)
     expect(view.game.view.canSkipActivePlayer).toBe(true)
+    expect(view.game.view.lastHotDice).toEqual(game.lastHotDice)
     expect(view.members.map(member => member.cumulativeScore)).toEqual([0, 0])
   })
 })

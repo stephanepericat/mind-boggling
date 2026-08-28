@@ -82,7 +82,7 @@ export function projectRoomState(
     })),
     game: {
       key: 'farkle.v1',
-      settings: state.game.settings,
+      settings: { ...state.game.settings, diceColor: state.game.settings.diceColor ?? 'ivory' },
       view: {
         phase: game?.phase ?? 'opening-roll',
         turnOrder: game?.turnOrder ?? state.members.map(member => member.id),
@@ -97,6 +97,7 @@ export function projectRoomState(
         finalRound: game?.finalRound,
         suddenDeath: game?.suddenDeath,
         winnerMemberId: game?.winnerMemberId,
+        lastHotDice: game?.lastHotDice,
         lastResolution: game?.lastResolution,
         canSkipActivePlayer: authorizedToSkip && skipEligibleAt !== undefined,
         skipEligibleAt: authorizedToSkip ? skipEligibleAt : undefined

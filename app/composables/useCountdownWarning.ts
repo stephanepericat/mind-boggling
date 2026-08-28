@@ -1,11 +1,10 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { onMounted, toValue, watch } from 'vue'
-
-let audioContext: AudioContext | null = null
-let unlockListenersAttached = false
+import { getRunningGameAudioContext, prepareGameAudio } from '../utils/gameAudio'
 
 function playCountdownTone(seconds: number, phase: 'round-end' | 'round-start') {
-  if (!audioContext || audioContext.state !== 'running') return
+  const audioContext = getRunningGameAudioContext()
+  if (!audioContext) return
 
   const finalBeat = phase === 'round-start' ? seconds === 1 : seconds <= 3
   const start = audioContext.currentTime
@@ -24,37 +23,13 @@ function playCountdownTone(seconds: number, phase: 'round-end' | 'round-start') 
   oscillator.stop(start + duration)
 }
 
-async function unlockAudio() {
-  const AudioContextClass = window.AudioContext
-    ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-
-  if (!AudioContextClass) return
-  audioContext ??= new AudioContextClass()
-
-  if (audioContext.state === 'suspended') await audioContext.resume()
-  if (audioContext.state === 'running') removeUnlockListeners()
-}
-
-function handleInteraction() {
-  void unlockAudio()
-}
-
-function removeUnlockListeners() {
-  window.removeEventListener('pointerdown', handleInteraction)
-  window.removeEventListener('keydown', handleInteraction)
-  unlockListenersAttached = false
-}
-
 export function prepareCountdownAudio() {
-  if (import.meta.server || unlockListenersAttached || audioContext?.state === 'running') return
-
-  window.addEventListener('pointerdown', handleInteraction)
-  window.addEventListener('keydown', handleInteraction)
-  unlockListenersAttached = true
+  prepareGameAudio()
 }
 
 export function playChatNotificationSound() {
-  if (!audioContext || audioContext.state !== 'running') return
+  const audioContext = getRunningGameAudioContext()
+  if (!audioContext) return
 
   const start = audioContext.currentTime
   for (const [index, frequency] of [660, 880].entries()) {
