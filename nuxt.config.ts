@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
+    '@nuxtjs/color-mode',
     '@nuxt/ui',
     '@clerk/nuxt',
     'nitro-cloudflare-dev'
@@ -12,6 +13,14 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  colorMode: {
+    preference: 'system',
+    fallback: 'light',
+    classSuffix: '',
+    storage: 'localStorage',
+    storageKey: 'mind-boggling-color-mode'
+  },
 
   runtimeConfig: {
     inviteCookieSecret: '',

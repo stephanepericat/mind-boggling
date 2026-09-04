@@ -5,6 +5,8 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme static {
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Funnel Sans', ui-sans-serif, system-ui, sans-serif;
@@ -24,15 +26,194 @@
 }
 
 @layer base {
-  body {
-    @apply bg-slate-50 text-slate-950 antialiased;
+  html {
+    color-scheme: light;
+    background-color: var(--color-slate-50);
   }
 
-  button, a, input {
-    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600;
+  html.dark {
+    color-scheme: dark;
+    background-color: var(--color-slate-950);
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-950 antialiased dark:bg-slate-950 dark:text-slate-50;
+  }
+
+  ::selection {
+    background-color: var(--color-blue-200);
+    color: var(--color-blue-950);
+  }
+
+  .dark ::selection {
+    background-color: var(--color-blue-800);
+    color: var(--color-blue-50);
+  }
+
+  button, a, input, select, textarea {
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:focus-visible:outline-primary-400;
   }
 }
 
 @utility game-panel {
-  @apply border border-slate-200 bg-white shadow-sm;
+  @apply border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-none;
+}
+
+/*
+ * The current interface predates semantic Nuxt UI color utilities. This
+ * compatibility layer maps its established slate and status roles onto
+ * intentional dark surfaces while components migrate incrementally.
+ */
+@layer utilities {
+  .dark .bg-white {
+    background-color: var(--color-slate-900);
+  }
+
+  .dark .bg-white\/95 {
+    background-color: color-mix(in oklab, var(--color-slate-900) 95%, transparent);
+  }
+
+  .dark .bg-slate-50 {
+    background-color: color-mix(in oklab, var(--color-slate-800) 55%, var(--color-slate-900));
+  }
+
+  .dark .bg-slate-100 {
+    background-color: var(--color-slate-800);
+  }
+
+  .dark .bg-slate-300 {
+    background-color: var(--color-slate-700);
+  }
+
+  .dark .text-slate-950 {
+    color: var(--color-slate-50);
+  }
+
+  .dark .text-slate-900 {
+    color: var(--color-slate-100);
+  }
+
+  .dark .text-slate-700 {
+    color: var(--color-slate-300);
+  }
+
+  .dark .text-slate-600 {
+    color: var(--color-slate-300);
+  }
+
+  .dark .text-slate-500 {
+    color: var(--color-slate-400);
+  }
+
+  .dark .text-slate-400 {
+    color: var(--color-slate-400);
+  }
+
+  .dark .border-slate-200 {
+    border-color: var(--color-slate-800);
+  }
+
+  .dark .border-slate-300 {
+    border-color: var(--color-slate-700);
+  }
+
+  .dark .hover\:bg-slate-50:hover {
+    background-color: color-mix(in oklab, var(--color-slate-800) 75%, var(--color-slate-900));
+  }
+
+  .dark .hover\:border-slate-400:hover {
+    border-color: var(--color-slate-500);
+  }
+
+  .dark .bg-primary-50 {
+    background-color: color-mix(in oklab, var(--color-blue-950) 72%, transparent);
+  }
+
+  .dark .hover\:bg-primary-50:hover {
+    background-color: color-mix(in oklab, var(--color-blue-950) 72%, transparent);
+  }
+
+  .dark .border-primary-200 {
+    border-color: var(--color-blue-800);
+  }
+
+  .dark .text-primary-600,
+  .dark .text-primary-700 {
+    color: var(--color-blue-300);
+  }
+
+  .dark .text-primary-800 {
+    color: var(--color-blue-200);
+  }
+
+  .dark .bg-amber-50,
+  .dark .bg-amber-100 {
+    background-color: color-mix(in oklab, var(--color-amber-950) 72%, transparent);
+  }
+
+  .dark .border-amber-200 {
+    border-color: var(--color-amber-800);
+  }
+
+  .dark .text-amber-700,
+  .dark .text-amber-800 {
+    color: var(--color-amber-300);
+  }
+
+  .dark .text-amber-900 {
+    color: var(--color-amber-200);
+  }
+
+  .dark .bg-emerald-50 {
+    background-color: color-mix(in oklab, var(--color-emerald-950) 72%, transparent);
+  }
+
+  .dark .text-emerald-700 {
+    color: var(--color-emerald-300);
+  }
+
+  .dark .bg-red-50 {
+    background-color: color-mix(in oklab, var(--color-red-950) 72%, transparent);
+  }
+
+  .dark .text-red-800 {
+    color: var(--color-red-300);
+  }
+
+  .dark .text-red-950 {
+    color: var(--color-red-100);
+  }
+
+  .dark .bg-violet-50\/60 {
+    background-color: color-mix(in oklab, var(--color-violet-950) 60%, transparent);
+  }
+
+  .dark .border-violet-200,
+  .dark .ring-violet-200 {
+    border-color: var(--color-violet-800);
+    --tw-ring-color: var(--color-violet-800);
+  }
+
+  .dark .text-violet-800 {
+    color: var(--color-violet-300);
+  }
+
+  .dark .border-black\/10 {
+    border-color: color-mix(in oklab, white 15%, transparent);
+  }
+
+  .dark .ring-black\/10,
+  .dark .ring-black\/15 {
+    --tw-ring-color: color-mix(in oklab, white 20%, transparent);
+  }
+
+  .dark .border-white,
+  .dark .ring-white {
+    border-color: var(--color-slate-900);
+    --tw-ring-color: var(--color-slate-900);
+  }
+
+  .dark .ring-offset-2 {
+    --tw-ring-offset-color: var(--color-slate-950);
+  }
 }

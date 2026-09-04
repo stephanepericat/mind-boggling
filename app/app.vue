@@ -20,7 +20,7 @@ useSeoMeta({
 <template>
   <UApp>
     <PlatformAppHeader />
-    <UMain class="min-h-[calc(100vh-4.75rem)] bg-slate-50">
+    <UMain class="min-h-[calc(100vh-4.75rem)] bg-slate-50 dark:bg-slate-950">
       <NuxtPage />
     </UMain>
   </UApp>

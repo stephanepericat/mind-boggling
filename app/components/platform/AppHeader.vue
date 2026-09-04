@@ -15,7 +15,7 @@ const links = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 h-[4.75rem] border-b border-slate-200 bg-white/95 backdrop-blur">
+  <header class="sticky top-0 z-40 h-[4.75rem] border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
     <div class="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-6 px-5 sm:px-8 lg:px-12">
       <NuxtLink
         to="/"
@@ -40,6 +40,7 @@ const links = computed(() => {
       </nav>
 
       <div class="flex items-center gap-2">
+        <UColorModeButton />
         <UButton
           to="/account"
           color="neutral"
@@ -52,7 +53,7 @@ const links = computed(() => {
             <UAvatar
               text="DP"
               size="sm"
-              class="bg-amber-300 text-slate-900"
+              class="bg-amber-300 text-amber-950"
             />
           </template>
           <Show
