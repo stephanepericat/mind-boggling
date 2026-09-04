@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { boggleSettingsSchema } from '../../shared/games/boggle'
 import { farkleSettingsSchema } from '../../shared/games/farkle'
+import { unoSettingsSchema } from '../../shared/games/uno'
 import { getGameManifest } from '../../shared/games/registry'
 import type { GameKey } from '../../shared/games/contract'
 import type { MatchHistoryItem } from '../../shared/types/api'
@@ -44,13 +45,15 @@ interface InviteIntentRow {
 export async function createMatch(
   event: H3Event,
   actor: Actor,
-  input: { gameKey: 'boggle.v1' | 'farkle.v1', name: string, settings: unknown }
+  input: { gameKey: 'boggle.v1' | 'farkle.v1' | 'uno.v1', name: string, settings: unknown }
 ): Promise<{ matchId: string, inviteUrl: string }> {
   const manifest = getGameManifest(input.gameKey)
   if (!manifest) throw createError({ statusCode: 422, statusMessage: 'That game is not available.' })
   const settings = input.gameKey === 'boggle.v1'
     ? boggleSettingsSchema.parse(input.settings)
-    : farkleSettingsSchema.parse(input.settings)
+    : input.gameKey === 'farkle.v1'
+      ? farkleSettingsSchema.parse(input.settings)
+      : unoSettingsSchema.parse(input.settings)
   const name = input.name.normalize('NFKC').trim().replace(/\s+/g, ' ')
   if (name.length < 2 || name.length > 48) {
     throw createError({ statusCode: 422, statusMessage: 'Match name must be between 2 and 48 characters.' })

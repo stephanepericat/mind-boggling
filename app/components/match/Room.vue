@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import type { UnoCommand } from '#shared/games/uno'
+
+type WithoutIdempotency<T> = T extends { idempotencyKey: string } ? Omit<T, 'idempotencyKey'> : never
+
 const props = defineProps<{ matchId: string }>()
 const toast = useToast()
 const {
@@ -66,6 +70,14 @@ async function bankFarkle(rollId: string, selectedDieIds: string[]) {
 
 async function skipFarkle(memberId: string) {
   await send(command({ type: 'farkle.turn.skip', memberId }))
+}
+
+async function sendUno(value: WithoutIdempotency<UnoCommand>) {
+  await send(command(value))
+}
+
+async function continueUnoRound() {
+  await send(command({ type: 'uno.round.continue' }))
 }
 
 async function endMatch() {
@@ -153,10 +165,22 @@ async function cancelMatch() {
         @bank="bankFarkle"
         @skip="skipFarkle"
       />
+      <UnoTable
+        v-else-if="state.gameKey === 'uno.v1' && state.status === 'active'"
+        :match="state"
+        :server-offset="serverOffset"
+        :connected="connected"
+        @command="sendUno"
+      />
       <BoggleRoundResults
         v-else-if="state.gameKey === 'boggle.v1' && state.status === 'round_results'"
         :match="state"
         @continue="continueRound"
+      />
+      <UnoRoundResults
+        v-else-if="state.gameKey === 'uno.v1' && state.status === 'round_results'"
+        :match="state"
+        @continue="continueUnoRound"
       />
       <MatchFinalResults
         v-else-if="state.status === 'finished'"

@@ -1,4 +1,5 @@
 import { currentScoringOptions, FARKLE_RULES } from '../../../shared/games/farkle'
+import { getUnoCard, playableUnoCardIds, unoBlockingMemberId, UNO_RULES } from '../../../shared/games/uno'
 import type { MatchMemberView, MatchView } from '../../../shared/types/api'
 import type { RoomState } from './types'
 
@@ -56,51 +57,124 @@ export function projectRoomState(
     }
   }
 
+  if (state.game.key === 'farkle.v1') {
+    const game = state.game.state
+    const activeMemberId = game?.turn?.memberId
+    const activePresence = activeMemberId ? state.presence[activeMemberId] : undefined
+    const activeDisconnected = Boolean(activeMemberId && !connectedMemberIds.has(activeMemberId))
+    const skipEligibleAt = activeDisconnected && game?.turn && activePresence?.disconnectedAt
+      ? Math.max(game.turn.startedAt, activePresence.disconnectedAt, activePresence.lastActivityAt) + FARKLE_RULES.disconnectGraceMs
+      : undefined
+    const viewer = state.members.find(member => member.id === viewerMemberId)
+    const active = state.members.find(member => member.id === activeMemberId)
+    const authorizedToSkip = Boolean(
+      viewer
+      && active
+      && viewer.id !== active.id
+      && connectedMemberIds.has(viewer.id)
+      && ((active.role === 'player' && viewer.role === 'host') || active.role === 'host')
+    )
+
+    return {
+      ...base,
+      gameKey: 'farkle.v1',
+      members: commonMembers(state, connectedMemberIds).map(member => ({
+        ...member,
+        cumulativeScore: game?.scores[member.id] ?? 0
+      })),
+      game: {
+        key: 'farkle.v1',
+        settings: { ...state.game.settings, diceColor: state.game.settings.diceColor ?? 'ivory' },
+        view: {
+          phase: game?.phase ?? 'opening-roll',
+          turnOrder: game?.turnOrder ?? state.members.map(member => member.id),
+          activeMemberId,
+          turnNumber: game?.turnNumber ?? 0,
+          scores: game?.scores ?? Object.fromEntries(state.members.map(member => [member.id, 0])),
+          hasEnteredScoreboard: game?.hasEnteredScoreboard ?? {},
+          turn: game?.turn,
+          openingRollRounds: game?.openingRollRounds ?? [],
+          openingWinnerMemberId: game?.openingWinnerMemberId,
+          scoringOptions: game ? currentScoringOptions(game) : [],
+          finalRound: game?.finalRound,
+          suddenDeath: game?.suddenDeath,
+          winnerMemberId: game?.winnerMemberId,
+          lastHotDice: game?.lastHotDice,
+          lastResolution: game?.lastResolution,
+          canSkipActivePlayer: authorizedToSkip && skipEligibleAt !== undefined,
+          skipEligibleAt: authorizedToSkip ? skipEligibleAt : undefined
+        }
+      }
+    }
+  }
+
   const game = state.game.state
-  const activeMemberId = game?.turn?.memberId
-  const activePresence = activeMemberId ? state.presence[activeMemberId] : undefined
-  const activeDisconnected = Boolean(activeMemberId && !connectedMemberIds.has(activeMemberId))
-  const skipEligibleAt = activeDisconnected && game?.turn && activePresence?.disconnectedAt
-    ? Math.max(game.turn.startedAt, activePresence.disconnectedAt, activePresence.lastActivityAt) + FARKLE_RULES.disconnectGraceMs
-    : undefined
+  const blockingMemberId = game ? unoBlockingMemberId(game) : undefined
+  const blockingMember = state.members.find(member => member.id === blockingMemberId)
   const viewer = state.members.find(member => member.id === viewerMemberId)
-  const active = state.members.find(member => member.id === activeMemberId)
-  const authorizedToSkip = Boolean(
+  const blockingPresence = blockingMemberId ? state.presence[blockingMemberId] : undefined
+  const blockingDisconnected = Boolean(blockingMemberId && !connectedMemberIds.has(blockingMemberId))
+  const disconnectResolveAt = blockingDisconnected && game && blockingPresence?.disconnectedAt
+    ? Math.max(game.turn.startedAt, blockingPresence.disconnectedAt, blockingPresence.lastActivityAt) + UNO_RULES.disconnectGraceMs
+    : undefined
+  const authorizedToResolve = Boolean(
     viewer
-    && active
-    && viewer.id !== active.id
+    && blockingMember
+    && viewer.id !== blockingMember.id
     && connectedMemberIds.has(viewer.id)
-    && ((active.role === 'player' && viewer.role === 'host') || active.role === 'host')
+    && ((blockingMember.role === 'player' && viewer.role === 'host') || blockingMember.role === 'host')
   )
+  const hand = game?.hands[viewerMemberId] ?? []
 
   return {
     ...base,
-    gameKey: 'farkle.v1',
+    gameKey: 'uno.v1',
     members: commonMembers(state, connectedMemberIds).map(member => ({
       ...member,
       cumulativeScore: game?.scores[member.id] ?? 0
     })),
     game: {
-      key: 'farkle.v1',
-      settings: { ...state.game.settings, diceColor: state.game.settings.diceColor ?? 'ivory' },
+      key: 'uno.v1',
+      settings: state.game.settings,
       view: {
-        phase: game?.phase ?? 'opening-roll',
+        phase: game?.phase ?? 'playing',
+        roundNumber: game?.roundNumber ?? 0,
         turnOrder: game?.turnOrder ?? state.members.map(member => member.id),
-        activeMemberId,
-        turnNumber: game?.turnNumber ?? 0,
+        dealerMemberId: game?.dealerMemberId ?? state.hostMemberId,
+        dealerSelection: game?.dealerSelection ?? [],
+        direction: game?.direction ?? 1,
+        activeMemberId: game?.activeMemberId,
+        activeColor: game?.activeColor,
+        startingWildChooserMemberId: game?.startingWildChooserMemberId,
+        topCard: game?.discardPile.at(-1) ? getUnoCard(game.discardPile.at(-1)!) : undefined,
+        drawPileCount: game?.drawPile.length ?? 0,
+        hand: hand.map(getUnoCard),
+        opponents: state.members.filter(member => member.id !== viewerMemberId).map(member => ({
+          memberId: member.id,
+          cardCount: game?.hands[member.id]?.length ?? 0
+        })),
         scores: game?.scores ?? Object.fromEntries(state.members.map(member => [member.id, 0])),
-        hasEnteredScoreboard: game?.hasEnteredScoreboard ?? {},
-        turn: game?.turn,
-        openingRollRounds: game?.openingRollRounds ?? [],
-        openingWinnerMemberId: game?.openingWinnerMemberId,
-        scoringOptions: game ? currentScoringOptions(game) : [],
-        finalRound: game?.finalRound,
-        suddenDeath: game?.suddenDeath,
+        playableCardIds: game ? playableUnoCardIds(game, viewerMemberId) : [],
+        canDraw: Boolean(game && game.phase === 'playing' && game.activeMemberId === viewerMemberId && !game.startingWildChooserMemberId && !game.pendingWildDrawFour && !game.turn.drawnCardId),
+        canPass: Boolean(game && game.phase === 'playing' && game.activeMemberId === viewerMemberId && game.turn.drawnCardId),
+        canChooseStartingColor: game?.startingWildChooserMemberId === viewerMemberId,
+        canCallUno: game?.pendingUno?.memberId === viewerMemberId,
+        canCatchUno: Boolean(game?.pendingUno && game.pendingUno.memberId !== viewerMemberId),
+        vulnerableMemberId: game?.pendingUno?.memberId,
+        pendingWildDrawFour: game?.pendingWildDrawFour
+          ? {
+              playedByMemberId: game.pendingWildDrawFour.playedByMemberId,
+              affectedMemberId: game.pendingWildDrawFour.affectedMemberId,
+              chosenColor: game.pendingWildDrawFour.chosenColor,
+              canRespond: game.pendingWildDrawFour.affectedMemberId === viewerMemberId
+            }
+          : undefined,
+        drawnCardId: game?.activeMemberId === viewerMemberId ? game.turn.drawnCardId : undefined,
+        roundResult: game?.roundResult,
         winnerMemberId: game?.winnerMemberId,
-        lastHotDice: game?.lastHotDice,
-        lastResolution: game?.lastResolution,
-        canSkipActivePlayer: authorizedToSkip && skipEligibleAt !== undefined,
-        skipEligibleAt: authorizedToSkip ? skipEligibleAt : undefined
+        lastAction: game?.lastAction,
+        canResolveDisconnectedPlayer: authorizedToResolve && disconnectResolveAt !== undefined,
+        disconnectResolveAt: authorizedToResolve ? disconnectResolveAt : undefined
       }
     }
   }

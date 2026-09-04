@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getGameManifest } from '#shared/games/registry'
 import type { MatchView } from '../../../shared/types/api'
 import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
 import { getFarkleDiceColorOption } from '../../utils/diceAppearance'
@@ -18,6 +19,7 @@ const generating = ref(false)
 const viewer = computed(() => props.match.members.find(member => member.id === props.match.viewerMemberId)!)
 const isHost = computed(() => viewer.value?.role === 'host')
 const canStart = computed(() => props.match.members.length >= 2 && props.match.members.every(member => member.ready))
+const maxPlayers = computed(() => getGameManifest(props.match.gameKey)?.maxPlayers ?? 8)
 const boardColorLabel = computed(() => props.match.gameKey === 'boggle.v1'
   ? getBoggleBoardColorOption(props.match.game.settings.boardColor).label
   : '')
@@ -76,7 +78,7 @@ async function revokeInvite() {
             Players
           </p>
           <p class="font-mono text-2xl font-black">
-            {{ match.members.length }}<span class="text-sm text-primary-400">/8</span>
+            {{ match.members.length }}<span class="text-sm text-primary-400">/{{ maxPlayers }}</span>
           </p>
         </div>
       </div>
@@ -236,7 +238,7 @@ async function revokeInvite() {
         </div>
       </dl>
       <dl
-        v-else
+        v-else-if="match.gameKey === 'farkle.v1'"
         class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm"
       >
         <div class="flex justify-between">
@@ -277,6 +279,46 @@ async function revokeInvite() {
           </dt>
           <dd class="font-mono font-bold">
             Sudden death
+          </dd>
+        </div>
+      </dl>
+      <dl
+        v-else
+        class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm"
+      >
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Winning score
+          </dt><dd class="font-mono font-bold">
+            {{ match.game.settings.targetScore.toLocaleString() }}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Deck
+          </dt><dd class="font-mono font-bold">
+            Classic 108
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Starting hand
+          </dt><dd class="font-mono font-bold">
+            7 cards
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Stacking
+          </dt><dd class="font-mono font-bold">
+            Off
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">
+            Challenge reveal
+          </dt><dd class="font-mono font-bold">
+            Server verdict
           </dd>
         </div>
       </dl>

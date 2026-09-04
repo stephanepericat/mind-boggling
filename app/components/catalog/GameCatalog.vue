@@ -3,10 +3,6 @@ import type { GameManifest } from '../../../shared/games/contract'
 
 const { data, status, error } = await useFetch<{ games: GameManifest[] }>('/api/catalog')
 const { data: history } = await useMatchHistory('/api/history')
-
-const futureGames = [
-  { name: 'UNO', icon: 'i-lucide-layers-3', description: 'Classic color-matching chaos for the whole table.' }
-]
 </script>
 
 <template>
@@ -26,8 +22,17 @@ const futureGames = [
       </div>
       <div class="flex flex-wrap gap-2">
         <UButton
+          to="/games/uno/new"
+          size="lg"
+          icon="i-lucide-layers-3"
+        >
+          Create UNO match
+        </UButton>
+        <UButton
           to="/games/farkle/new"
           size="lg"
+          color="neutral"
+          variant="outline"
           icon="i-lucide-dices"
         >
           Create Farkle match
@@ -84,7 +89,7 @@ const futureGames = [
             >{{ letter }}</span>
           </div>
           <div
-            v-else
+            v-else-if="game.key === 'farkle.v1'"
             class="grid grid-cols-3 gap-3 -rotate-3"
           >
             <span
@@ -92,6 +97,17 @@ const futureGames = [
               :key="face"
               class="grid size-14 place-items-center rounded-xl bg-white font-mono text-2xl font-black text-primary-700 shadow-lg"
             >{{ face }}</span>
+          </div>
+          <div
+            v-else
+            class="relative h-40 w-48"
+          >
+            <span
+              v-for="(card, index) in [{ label: '7', color: '#E53935' }, { label: '↻', color: '#FFC928' }, { label: '+2', color: '#18A957' }, { label: 'W', color: '#11151D' }]"
+              :key="card.label"
+              class="absolute left-1/2 top-1/2 grid h-28 w-20 place-items-center rounded-xl border-4 border-[#FFF7E6] font-display text-2xl font-black text-white shadow-xl"
+              :style="{ backgroundColor: card.color, transform: `translate(-50%, -50%) rotate(${(index - 1.5) * 12}deg) translateX(${(index - 1.5) * 18}px)` }"
+            >{{ card.label }}</span>
           </div>
         </div>
         <div class="relative min-w-0 p-7 xl:order-1 xl:col-span-3">
@@ -140,33 +156,6 @@ const futureGames = [
           </UButton>
         </div>
       </article>
-
-      <aside class="rounded-xl bg-slate-950 p-7 text-white lg:col-span-2">
-        <p class="text-xs font-bold uppercase tracking-[0.16em] text-primary-300">
-          Coming in v2
-        </p>
-        <div class="mt-6 space-y-6">
-          <div
-            v-for="game in futureGames"
-            :key="game.name"
-            class="flex gap-4"
-          >
-            <div class="grid size-10 shrink-0 place-items-center rounded-lg bg-white/10">
-              <UIcon
-                :name="game.icon"
-                class="size-5"
-              />
-            </div>
-            <div>
-              <h3 class="font-display text-xl font-bold">
-                {{ game.name }}
-              </h3><p class="mt-1 text-sm text-slate-400">
-                {{ game.description }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
     </div>
 
     <section class="mt-12">

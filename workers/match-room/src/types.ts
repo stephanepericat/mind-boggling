@@ -1,5 +1,6 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore, WordSubmission } from '../../../shared/games/boggle'
 import type { FarkleSettings, FarkleState } from '../../../shared/games/farkle'
+import type { UnoSettings, UnoState } from '../../../shared/games/uno'
 import type { ChatMessage } from '../../../shared/platform/chat'
 import type { MatchStatus, MatchView } from '../../../shared/types/api'
 
@@ -37,6 +38,12 @@ export interface FarkleRoomGameState {
   state: FarkleState | null
 }
 
+export interface UnoRoomGameState {
+  key: 'uno.v1'
+  settings: UnoSettings
+  state: UnoState | null
+}
+
 export interface RoomState {
   stateVersion: 2
   id: string
@@ -46,15 +53,15 @@ export interface RoomState {
   members: RoomMember[]
   sequence: number
   presence: Record<string, MemberPresence>
-  game: BoggleRoomGameState | FarkleRoomGameState
+  game: BoggleRoomGameState | FarkleRoomGameState | UnoRoomGameState
 }
 
 export interface InitializeRoomInput {
   state: {
     id: string
     name: string
-    gameKey: 'boggle.v1' | 'farkle.v1'
-    settings: BoggleSettings | FarkleSettings
+    gameKey: 'boggle.v1' | 'farkle.v1' | 'uno.v1'
+    settings: BoggleSettings | FarkleSettings | UnoSettings
     hostMemberId: string
     members: RoomMember[]
   }

@@ -4,7 +4,7 @@ import { createMatch } from '../../utils/matches'
 
 const inputSchema = z.object({
   name: z.string(),
-  gameKey: z.enum(['boggle.v1', 'farkle.v1']),
+  gameKey: z.enum(['boggle.v1', 'farkle.v1', 'uno.v1']),
   settings: z.unknown()
 })
 

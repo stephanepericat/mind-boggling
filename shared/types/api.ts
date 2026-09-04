@@ -1,5 +1,6 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore } from '../games/boggle'
 import type { FarklePlayerView, FarkleSettings } from '../games/farkle'
+import type { UnoPlayerView, UnoSettings } from '../games/uno'
 import type { GameKey } from '../games/contract'
 
 export type MatchStatus = 'lobby' | 'active' | 'round_results' | 'finished' | 'cancelled'
@@ -45,7 +46,12 @@ export interface FarkleMatchView extends PlatformMatchView {
   game: { key: 'farkle.v1', settings: FarkleSettings, view: FarklePlayerView }
 }
 
-export type MatchView = BoggleMatchView | FarkleMatchView
+export interface UnoMatchView extends PlatformMatchView {
+  gameKey: 'uno.v1'
+  game: { key: 'uno.v1', settings: UnoSettings, view: UnoPlayerView }
+}
+
+export type MatchView = BoggleMatchView | FarkleMatchView | UnoMatchView
 
 export interface MatchHistoryItem {
   matchId: string

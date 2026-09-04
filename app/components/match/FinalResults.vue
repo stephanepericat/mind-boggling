@@ -3,7 +3,18 @@ import type { MatchView } from '../../../shared/types/api'
 
 const props = defineProps<{ match: MatchView }>()
 const winner = computed(() => [...props.match.members].sort((left, right) => (right.cumulativeScore ?? 0) - (left.cumulativeScore ?? 0))[0])
-const playAgainPath = computed(() => `/games/${props.match.gameKey === 'boggle.v1' ? 'boggle' : 'farkle'}/new`)
+const playAgainPath = computed(() => `/games/${props.match.gameKey.replace('.v1', '')}/new`)
+const resultCopy = computed(() => {
+  if (props.match.gameKey === 'boggle.v1') return `${props.match.game.settings.rounds} rounds, one shared board at a time, and every duplicate settled.`
+  if (props.match.gameKey === 'farkle.v1') return 'Six dice, one final turn for every opponent, and sudden death settled at the table.'
+  return `${props.match.game.view.roundNumber} rounds of reversals, challenges, and close calls.`
+})
+const segmentLabel = computed(() => props.match.gameKey === 'farkle.v1' ? 'Turns' : 'Rounds')
+const segmentValue = computed(() => {
+  if (props.match.gameKey === 'boggle.v1') return props.match.game.view.currentRound
+  if (props.match.gameKey === 'farkle.v1') return props.match.game.view.turnNumber
+  return props.match.game.view.roundNumber
+})
 </script>
 
 <template>
@@ -17,12 +28,7 @@ const playAgainPath = computed(() => `/games/${props.match.gameKey === 'boggle.v
           {{ winner?.displayName }} wins!
         </h1>
         <p class="mt-4 max-w-xl text-primary-100">
-          <template v-if="match.gameKey === 'boggle.v1'">
-            {{ match.game.settings.rounds }} rounds, one shared board at a time, and every duplicate settled.
-          </template>
-          <template v-else>
-            Six dice, one final turn for every opponent, and sudden death settled at the table.
-          </template>
+          {{ resultCopy }}
         </p>
         <div class="mt-10 flex flex-wrap gap-3">
           <UButton
@@ -55,9 +61,9 @@ const playAgainPath = computed(() => `/games/${props.match.gameKey === 'boggle.v
         </div>
         <div class="border-x border-white/20 p-5">
           <p class="text-xs text-primary-200">
-            {{ match.gameKey === 'boggle.v1' ? 'Rounds' : 'Turns' }}
+            {{ segmentLabel }}
           </p><p class="mt-1 font-mono text-2xl font-black">
-            {{ match.gameKey === 'boggle.v1' ? match.game.view.currentRound : match.game.view.turnNumber }}
+            {{ segmentValue }}
           </p>
         </div>
         <div class="p-5">

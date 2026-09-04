@@ -27,11 +27,30 @@ import {
   skipFarkleTurn
 } from '../../../shared/games/farkle'
 import type { FarkleCommand, FarkleSettings } from '../../../shared/games/farkle'
+import {
+  callUno,
+  catchUno,
+  chooseUnoDealer,
+  chooseUnoStartingColor,
+  continueUnoRound,
+  createUnoDeck,
+  createUnoState,
+  drawUnoCard,
+  passUnoTurn,
+  playUnoCard,
+  resolveDisconnectedUnoTurn,
+  respondToWildDrawFour,
+  unoBlockingMemberId,
+  unoCommandSchema,
+  UNO_RULES
+} from '../../../shared/games/uno'
+import type { UnoCommand, UnoSettings } from '../../../shared/games/uno'
 import { chatSendSchema } from '../../../shared/platform/chat'
 import type { ChatMessage, ChatSendCommand } from '../../../shared/platform/chat'
 import { platformMatchCommandSchema } from '../../../shared/platform/match'
 import type { PlatformMatchCommand } from '../../../shared/platform/match'
 import type { MatchView, RealtimeEnvelope } from '../../../shared/types/api'
+import { shuffle } from '../../../shared/random/shuffle'
 import { projectRoomState } from './projection'
 import { WebCryptoRandomSource } from './random'
 import type {
@@ -42,7 +61,7 @@ import type {
   RoomState
 } from './types'
 
-type RoomCommand = PlatformMatchCommand | BoggleCommand | FarkleCommand
+type RoomCommand = PlatformMatchCommand | BoggleCommand | FarkleCommand | UnoCommand
 
 type ChatMessageRow = {
   id: number
@@ -91,7 +110,7 @@ function isVersionedRoomState(value: unknown): value is RoomState {
     && typeof value.id === 'string'
     && Array.isArray(value.members)
     && isRecord(value.game)
-    && (value.game.key === 'boggle.v1' || value.game.key === 'farkle.v1')
+    && (value.game.key === 'boggle.v1' || value.game.key === 'farkle.v1' || value.game.key === 'uno.v1')
 }
 
 function isLegacyBoggleRoomState(value: unknown): value is LegacyBoggleRoomState {
@@ -240,19 +259,27 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       sequence: 1,
       presence: Object.fromEntries(input.state.members.map(member => [member.id, { lastActivityAt: now, disconnectedAt: now }]))
     }
-    const state: RoomState = input.state.gameKey === 'boggle.v1'
-      ? {
-          ...common,
-          game: {
-            key: 'boggle.v1',
-            settings: input.state.settings as BoggleSettings,
-            state: { currentRound: 0, submissions: [], cumulativeScores: {} }
-          }
+    let state: RoomState
+    if (input.state.gameKey === 'boggle.v1') {
+      state = {
+        ...common,
+        game: {
+          key: 'boggle.v1',
+          settings: input.state.settings as BoggleSettings,
+          state: { currentRound: 0, submissions: [], cumulativeScores: {} }
         }
-      : {
-          ...common,
-          game: { key: 'farkle.v1', settings: input.state.settings as FarkleSettings, state: null }
-        }
+      }
+    } else if (input.state.gameKey === 'farkle.v1') {
+      state = {
+        ...common,
+        game: { key: 'farkle.v1', settings: input.state.settings as FarkleSettings, state: null }
+      }
+    } else {
+      state = {
+        ...common,
+        game: { key: 'uno.v1', settings: input.state.settings as UnoSettings, state: null }
+      }
+    }
     this.writeState(state)
     return json({ ok: true, created: true })
   }
@@ -354,8 +381,12 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       const boggle = boggleCommandSchema.safeParse(body)
       return boggle.success ? boggle.data : null
     }
-    const farkle = farkleCommandSchema.safeParse(body)
-    return farkle.success ? farkle.data : null
+    if (state.game.key === 'farkle.v1') {
+      const farkle = farkleCommandSchema.safeParse(body)
+      return farkle.success ? farkle.data : null
+    }
+    const uno = unoCommandSchema.safeParse(body)
+    return uno.success ? uno.data : null
   }
 
   private async handleCommand(state: RoomState, memberId: string, body: unknown): Promise<RealtimeEnvelope> {
@@ -367,8 +398,8 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     ).toArray()[0]
     if (alreadyProcessed) return this.envelope(state, 'command.acknowledged', { duplicate: true })
 
-    const errorCode = command.type.startsWith('boggle.') || command.type.startsWith('farkle.')
-      ? await this.applyGameCommand(state, memberId, command as BoggleCommand | FarkleCommand)
+    const errorCode = command.type.startsWith('boggle.') || command.type.startsWith('farkle.') || command.type.startsWith('uno.')
+      ? await this.applyGameCommand(state, memberId, command as BoggleCommand | FarkleCommand | UnoCommand)
       : await this.applyPlatformCommand(state, memberId, command as PlatformMatchCommand)
     if (errorCode) return this.envelope(state, 'error', { code: errorCode })
 
@@ -402,7 +433,8 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
         this.env.DB.prepare(`UPDATE invites SET revoked_at = ?1 WHERE match_id = ?2 AND revoked_at IS NULL`).bind(startedAt, state.id)
       ])
       if (state.game.key === 'boggle.v1') await this.startBoggleRound(state, 1)
-      else this.startFarkle(state)
+      else if (state.game.key === 'farkle.v1') this.startFarkle(state)
+      else this.startUno(state)
       return null
     }
     if (command.type === 'match.cancel') {
@@ -440,9 +472,10 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     return 'invalid_command'
   }
 
-  private async applyGameCommand(state: RoomState, memberId: string, command: BoggleCommand | FarkleCommand): Promise<string | null> {
+  private async applyGameCommand(state: RoomState, memberId: string, command: BoggleCommand | FarkleCommand | UnoCommand): Promise<string | null> {
     if (state.game.key === 'boggle.v1') return this.applyBoggleCommand(state, memberId, command as BoggleCommand)
-    return this.applyFarkleCommand(state, memberId, command as FarkleCommand)
+    if (state.game.key === 'farkle.v1') return this.applyFarkleCommand(state, memberId, command as FarkleCommand)
+    return this.applyUnoCommand(state, memberId, command as UnoCommand)
   }
 
   private async applyBoggleCommand(state: RoomState, memberId: string, command: BoggleCommand): Promise<string | null> {
@@ -512,6 +545,67 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     return null
   }
 
+  private applyUnoCommand(state: RoomState, memberId: string, command: UnoCommand): string | null {
+    if (state.game.key !== 'uno.v1' || !state.game.state) return 'invalid_state'
+    const game = state.game.state
+    const actor = state.members.find(member => member.id === memberId)!
+    const now = Date.now()
+    const shuffleDiscard = (cardIds: readonly string[]) => shuffle(cardIds, this.random)
+    let result
+
+    if (command.type === 'uno.round.continue') {
+      if (actor.role !== 'host') return 'host_only'
+      if (state.status !== 'round_results') return 'invalid_state'
+      result = continueUnoRound(game, shuffle(createUnoDeck(), this.random), shuffleDiscard, now)
+    } else {
+      if (state.status !== 'active') return 'invalid_state'
+      if (command.type === 'uno.card.play') {
+        result = playUnoCard(game, state.game.settings, memberId, command.cardId, command.declaredColor, command.calledUno, shuffleDiscard, now)
+      } else if (command.type === 'uno.card.draw') {
+        result = drawUnoCard(game, memberId, shuffleDiscard, now)
+      } else if (command.type === 'uno.turn.pass') {
+        result = passUnoTurn(game, memberId, now)
+      } else if (command.type === 'uno.color.choose') {
+        result = chooseUnoStartingColor(game, memberId, command.color, now)
+      } else if (command.type === 'uno.call') {
+        result = callUno(game, memberId, now)
+      } else if (command.type === 'uno.catch') {
+        result = catchUno(game, memberId, shuffleDiscard, now)
+      } else if (command.type === 'uno.wild-draw-four.respond') {
+        result = respondToWildDrawFour(game, state.game.settings, memberId, command.response, shuffleDiscard, now)
+      } else if (command.type === 'uno.turn.resolve-disconnect') {
+        const resolutionError = this.validateUnoDisconnectResolution(state, memberId, command.memberId, now)
+        if (resolutionError) return resolutionError
+        result = resolveDisconnectedUnoTurn(game, state.game.settings, command.memberId, shuffleDiscard, now)
+      } else {
+        return 'invalid_command'
+      }
+    }
+
+    if (result.error) return result.error
+    state.game.state = result.state
+    if (result.state.phase === 'finished') state.status = 'finished'
+    else if (result.state.phase === 'round-results') state.status = 'round_results'
+    else state.status = 'active'
+    return null
+  }
+
+  private validateUnoDisconnectResolution(state: RoomState, actorMemberId: string, targetMemberId: string, now: number): string | null {
+    if (state.game.key !== 'uno.v1' || !state.game.state) return 'invalid_state'
+    const blockingMemberId = unoBlockingMemberId(state.game.state)
+    const target = state.members.find(member => member.id === targetMemberId)
+    const actor = state.members.find(member => member.id === actorMemberId)
+    if (!target || !actor || blockingMemberId !== targetMemberId || actorMemberId === targetMemberId) return 'invalid_target'
+    if (this.isConnected(targetMemberId)) return 'player_connected'
+    if (!this.isConnected(actorMemberId)) return 'actor_disconnected'
+    if (target.role === 'player' && actor.role !== 'host') return 'host_only'
+    const presence = state.presence[targetMemberId]
+    if (!presence?.disconnectedAt) return 'skip_not_available'
+    const eligibleAt = Math.max(state.game.state.turn.startedAt, presence.disconnectedAt, presence.lastActivityAt) + UNO_RULES.disconnectGraceMs
+    if (now < eligibleAt) return 'skip_grace_period'
+    return null
+  }
+
   private validateSkip(state: RoomState, actorMemberId: string, targetMemberId: string, now: number): string | null {
     if (state.game.key !== 'farkle.v1' || !state.game.state?.turn) return 'invalid_state'
     const target = state.members.find(member => member.id === targetMemberId)
@@ -531,6 +625,25 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     if (state.game.key !== 'farkle.v1') return
     const memberIds = state.members.map(member => member.id)
     state.game.state = createFarkleOpeningState(memberIds, crypto.randomUUID())
+    state.status = 'active'
+  }
+
+  private startUno(state: RoomState): void {
+    if (state.game.key !== 'uno.v1') return
+    const memberIds = state.members.map(member => member.id)
+    const dealer = chooseUnoDealer(memberIds, (contenders) => {
+      const dealerDeck = shuffle(createUnoDeck(), this.random)
+      return Object.fromEntries(contenders.map((memberId, index) => [memberId, dealerDeck[index]!]))
+    })
+    const shuffleDiscard = (cardIds: readonly string[]) => shuffle(cardIds, this.random)
+    state.game.state = createUnoState(
+      memberIds,
+      dealer.dealerMemberId,
+      dealer.rounds,
+      shuffle(createUnoDeck(), this.random),
+      shuffleDiscard,
+      Date.now()
+    )
     state.status = 'active'
   }
 
@@ -589,6 +702,17 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
 
   private finalPayload(state: RoomState): Record<string, unknown> {
     if (state.game.key === 'boggle.v1') return { rounds: state.game.state.currentRound }
+    if (state.game.key === 'uno.v1') {
+      const game = state.game.state
+      return {
+        rulesVersion: state.game.settings.rulesVersion,
+        targetScore: state.game.settings.targetScore,
+        rounds: game?.roundNumber ?? 0,
+        cardsPlayed: game?.stats.cardsPlayed ?? 0,
+        cardsDrawn: game?.stats.cardsDrawn ?? 0,
+        challenges: game?.stats.challenges ?? 0
+      }
+    }
     const game = state.game.state
     return {
       rulesVersion: state.game.settings.rulesVersion,
