@@ -22,6 +22,7 @@ const emit = defineEmits<{
 const activeName = computed(() => memberName(props.view.activeMemberId))
 const vulnerableName = computed(() => memberName(props.view.vulnerableMemberId))
 const viewerHandCount = computed(() => props.view.hand.length)
+const isViewerTurn = computed(() => props.view.activeMemberId === props.viewerMemberId)
 const canArmUno = computed(() => props.view.activeMemberId === props.viewerMemberId && viewerHandCount.value === 2)
 const resolveMemberId = computed(() => props.view.pendingWildDrawFour?.affectedMemberId ?? props.view.startingWildChooserMemberId ?? props.view.activeMemberId)
 const resolveSeconds = computed(() => props.view.disconnectResolveAt
@@ -34,13 +35,21 @@ function memberName(memberId?: string): string {
 </script>
 
 <template>
-  <div class="action-panel">
-    <div class="min-w-0">
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-white/45">
-        Turn signal
-      </p>
-      <p class="mt-1 truncate font-display text-lg font-black text-white">
-        {{ view.activeMemberId === viewerMemberId ? 'Your move.' : `${activeName} is up.` }}
+  <div
+    class="action-panel"
+    :class="{ 'action-panel--yours': isViewerTurn }"
+  >
+    <div class="action-panel__signal">
+      <span class="action-panel__signal-icon">
+        <UIcon
+          :name="isViewerTurn ? 'i-lucide-mouse-pointer-click' : 'i-lucide-hourglass'"
+          class="size-4"
+          aria-hidden="true"
+        />
+      </span>
+      <p class="min-w-0 truncate">
+        <strong>{{ isViewerTurn ? 'Your turn' : `${activeName}'s turn` }}</strong>
+        <span>{{ isViewerTurn ? 'Play a raised card or draw one.' : 'Watch the center pile.' }}</span>
       </p>
     </div>
 
@@ -52,7 +61,7 @@ function memberName(memberId?: string): string {
         <p class="font-bold text-white">
           Wild Draw Four
         </p>
-        <p class="text-xs text-white/60">
+        <p class="action-panel__hint">
           Accept four cards or challenge the play.
         </p>
       </div>
@@ -91,7 +100,7 @@ function memberName(memberId?: string): string {
 
     <div
       v-else
-      class="flex flex-wrap items-center justify-end gap-2"
+      class="action-panel__controls"
     >
       <UButton
         v-if="view.canDraw"
@@ -114,6 +123,8 @@ function memberName(memberId?: string): string {
         v-if="canArmUno"
         :color="unoArmed ? 'warning' : 'neutral'"
         :variant="unoArmed ? 'solid' : 'outline'"
+        :aria-pressed="unoArmed"
+        icon="i-lucide-megaphone"
         @click="emit('toggleUno')"
       >
         {{ unoArmed ? 'UNO armed' : 'Call UNO' }}
@@ -121,6 +132,7 @@ function memberName(memberId?: string): string {
       <UButton
         v-if="view.canCallUno"
         color="warning"
+        icon="i-lucide-megaphone"
         @click="emit('call')"
       >
         Call UNO now
@@ -129,11 +141,25 @@ function memberName(memberId?: string): string {
         v-if="view.canCatchUno"
         color="error"
         icon="i-lucide-zap"
+        :title="`Catch ${vulnerableName} before the next player plays or draws`"
         @click="emit('catch')"
       >
         Catch {{ vulnerableName }}
       </UButton>
     </div>
+
+    <p
+      v-if="view.canCatchUno"
+      class="action-panel__catch-copy"
+    >
+      {{ vulnerableName }} reached one card without calling UNO. Catch them before the next player plays or draws.
+    </p>
+    <p
+      v-else-if="view.canCallUno"
+      class="action-panel__catch-copy action-panel__catch-copy--safe"
+    >
+      You forgot to call UNO. Call it now before another player catches you.
+    </p>
 
     <div
       v-if="view.canResolveDisconnectedPlayer && resolveMemberId"
@@ -155,17 +181,25 @@ function memberName(memberId?: string): string {
 
 <style scoped>
 .action-panel {
+  --signal: #fff7e6;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.9rem;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 1rem;
-  background: rgb(7 10 15 / 76%);
-  padding: 0.85rem 1rem;
-  backdrop-filter: blur(16px);
+  gap: 0.65rem 1rem;
+  border-radius: 0.8rem;
+  background: #080b10;
+  padding: 0.65rem 0.8rem;
+  box-shadow: 0 0.65rem 1.6rem rgb(0 0 0 / 28%);
 }
+
+.action-panel--yours { --signal: #ffc928; background: color-mix(in srgb, #ffc928 9%, #080b10); }
+.action-panel__signal { display: flex; min-width: 12rem; align-items: center; gap: 0.65rem; color: #fff7e6; }
+.action-panel__signal-icon { display: grid; width: 2rem; aspect-ratio: 1; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--signal); color: #11151d; }
+.action-panel__signal strong { display: block; font-family: 'Funnel Sans', sans-serif; font-size: 0.95rem; font-weight: 900; }
+.action-panel__signal span { display: block; color: rgb(255 247 230 / 62%); font-size: 0.68rem; }
+.action-panel__controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.45rem; }
+.action-panel__hint { color: rgb(255 247 230 / 66%); font-size: 0.75rem; }
 
 .action-panel__urgent,
 .action-panel__disconnect {
@@ -175,6 +209,24 @@ function memberName(memberId?: string): string {
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
+}
+
+.action-panel__catch-copy {
+  flex-basis: 100%;
+  color: #ffaaa6;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.action-panel__catch-copy--safe { color: #ffe38c; }
+
+@media (max-width: 640px) {
+  .action-panel { gap: 0.45rem; padding: 0.5rem 0.6rem; }
+  .action-panel__signal { min-width: 7.5rem; flex: 1 1 7.5rem; }
+  .action-panel__signal span { display: none; }
+  .action-panel__controls { flex-wrap: nowrap; }
+  .action-panel__controls :deep(.u-button) { padding-inline: 0.55rem; }
 }
 
 .action-panel__disconnect {

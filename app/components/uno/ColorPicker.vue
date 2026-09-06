@@ -28,15 +28,10 @@ function cancelOnEscape(event: KeyboardEvent) {
     aria-label="Choose the active color"
     @keydown.esc="cancelOnEscape"
   >
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-[0.16em] text-white/55">
-          Wild card
-        </p>
-        <h2 class="mt-1 font-display text-xl font-black text-white">
-          {{ title }}
-        </h2>
-      </div>
+    <div class="color-picker__heading">
+      <h2 class="font-display text-base font-black text-white">
+        {{ title }}
+      </h2>
       <UButton
         v-if="cancelable"
         color="neutral"
@@ -46,7 +41,7 @@ function cancelOnEscape(event: KeyboardEvent) {
         @click="emit('cancel')"
       />
     </div>
-    <div class="mt-4 grid grid-cols-4 gap-2">
+    <div class="color-picker__choices">
       <button
         v-for="color in UNO_COLORS"
         :key="color"
@@ -64,17 +59,22 @@ function cancelOnEscape(event: KeyboardEvent) {
 
 <style scoped>
 .color-picker {
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 1rem;
-  background: rgb(7 10 15 / 88%);
-  padding: 1rem;
-  box-shadow: 0 1.2rem 3rem rgb(0 0 0 / 34%);
-  backdrop-filter: blur(16px);
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) minmax(13rem, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.8rem;
+  background: #080b10;
+  padding: 0.55rem 0.7rem;
+  box-shadow: 0 0.65rem 1.6rem rgb(0 0 0 / 28%);
 }
+
+.color-picker__heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.color-picker__choices { display: grid; grid-template-columns: repeat(4, minmax(2.6rem, 1fr)); gap: 0.42rem; }
 
 .color-choice {
   display: grid;
-  min-height: 3.3rem;
+  min-height: 2.7rem;
   place-items: center;
   border: 2px solid rgb(255 255 255 / 38%);
   border-radius: 0.75rem;
@@ -88,4 +88,10 @@ function cancelOnEscape(event: KeyboardEvent) {
 
 .color-choice:hover { transform: translateY(-0.16rem); filter: brightness(1.08); }
 .color-choice:focus-visible { outline: 3px solid #fff7e6; outline-offset: 3px; }
+
+@media (max-width: 560px) {
+  .color-picker { grid-template-columns: 1fr; gap: 0.4rem; }
+  .color-picker__heading h2 { font-size: 0.8rem; }
+  .color-choice { min-height: 2.35rem; }
+}
 </style>

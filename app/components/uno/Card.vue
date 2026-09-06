@@ -69,7 +69,7 @@ function select() {
   --uno-face: #fff7e6;
   --uno-ink: #fff7e6;
   position: relative;
-  width: clamp(4.3rem, 8vw, 6.2rem);
+  width: var(--uno-card-width, clamp(4.3rem, 8vw, 6.2rem));
   aspect-ratio: 0.68;
   flex: 0 0 auto;
   overflow: hidden;
@@ -88,20 +88,30 @@ function select() {
 .uno-card--blue { background: #1677e8; }
 .uno-card--wild { background: conic-gradient(from 38deg, #e53935 0 25%, #ffc928 0 50%, #18a957 0 75%, #1677e8 0); }
 
-.uno-card--playable:hover {
-  z-index: 5;
-  transform: translateY(-0.7rem) rotate(-1deg);
+.uno-card--playable {
+  z-index: 2;
+  transform: translateY(-0.38rem);
+  box-shadow: 0 0.75rem 1.3rem rgb(4 9 18 / 32%), 0 0 0 2px rgb(255 247 230 / 62%);
+}
+
+.uno-card--playable:hover,
+.uno-card--playable:focus-visible {
+  z-index: 30;
+  transform: translateY(-0.9rem) rotate(-1deg);
   box-shadow: 0 1rem 1.6rem rgb(4 9 18 / 36%), 0 0 0 3px rgb(255 255 255 / 72%);
 }
 
+.uno-card:focus-visible { outline: 3px solid #ffc928; outline-offset: 3px; }
+
 .uno-card--selected {
-  transform: translateY(-0.9rem);
+  z-index: 25;
+  transform: translateY(-1rem);
   box-shadow: 0 1rem 1.6rem rgb(4 9 18 / 36%), 0 0 0 4px #ffc928;
 }
 
 .uno-card--muted {
-  filter: saturate(0.48);
-  opacity: 0.58;
+  filter: saturate(0.52) brightness(0.82);
+  opacity: 0.64;
 }
 
 .uno-card--compact {

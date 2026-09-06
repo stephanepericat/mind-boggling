@@ -1,6 +1,23 @@
 import { UNO_COLORS, UNO_RULES } from './rules'
 import type { UnoCard, UnoColor } from './types'
 
+const COLOR_SORT_ORDER = new Map<UnoColor | undefined, number>([
+  ['red', 0],
+  ['yellow', 1],
+  ['green', 2],
+  ['blue', 3],
+  [undefined, 4]
+])
+
+const KIND_SORT_ORDER: Record<UnoCard['kind'], number> = {
+  'number': 0,
+  'skip': 10,
+  'reverse': 11,
+  'draw-two': 12,
+  'wild': 13,
+  'wild-draw-four': 14
+}
+
 let deckCache: UnoCard[] | undefined
 let cardCache: Map<string, UnoCard> | undefined
 
@@ -25,6 +42,19 @@ export function createUnoDeck(): UnoCard[] {
     cards.push({ id: `wild:wild-draw-four:${copy}`, kind: 'wild-draw-four' })
   }
   return cards
+}
+
+export function compareUnoCards(left: UnoCard, right: UnoCard): number {
+  const colorDifference = (COLOR_SORT_ORDER.get(left.color) ?? 4) - (COLOR_SORT_ORDER.get(right.color) ?? 4)
+  if (colorDifference !== 0) return colorDifference
+
+  const leftValue = left.kind === 'number' ? left.number ?? 0 : KIND_SORT_ORDER[left.kind]
+  const rightValue = right.kind === 'number' ? right.number ?? 0 : KIND_SORT_ORDER[right.kind]
+  return leftValue - rightValue || left.id.localeCompare(right.id)
+}
+
+export function sortUnoCards(cards: readonly UnoCard[]): UnoCard[] {
+  return [...cards].sort(compareUnoCards)
 }
 
 function cardsById(): Map<string, UnoCard> {

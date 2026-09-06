@@ -13,7 +13,8 @@ const rules = computed(() => [
   ['Reverse and Skip', 'Reverse changes direction and Skip removes the next turn. With two players, either card returns play to you.'],
   ['Wild', 'Choose any active color, including the current color.'],
   ['Wild Draw Four', 'Play it only when you have no card matching the active color. The affected player may accept four or challenge. The server checks legality without revealing your hand.'],
-  ['Call UNO', 'Declare UNO when playing down to one card. If you forget, call it before another player catches you or the next player acts.'],
+  ['Call UNO', 'Declare UNO when playing down to one card. You can arm the call before playing your next-to-last card. If you forget, call it before another player catches you.'],
+  ['Catch a missed UNO', 'When another player reaches one card without calling UNO, a red Catch button appears on their seat and beside your turn controls. Select it before the next player plays or draws; a successful catch makes that player draw two.'],
   ['Scoring', 'The round winner scores every card left in opponents’ hands: numbers at face value, colored actions at 20, and Wilds at 50.'],
   ['Winning', `The first player to reach ${format.format(props.targetScore)} points wins this match.`],
   ['Disconnected player', 'After 60 seconds, the host may resolve a disconnected turn as a legal draw and pass. A disconnected host may be resolved by another player.']

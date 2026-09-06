@@ -109,7 +109,10 @@ async function cancelMatch() {
 <template>
   <div
     class="mx-auto max-w-[1320px] px-5 sm:px-8 lg:px-12"
-    :class="state?.status === 'active' ? 'py-4 lg:py-5' : 'py-8 lg:py-10'"
+    :class="[
+      state?.status === 'active' ? 'py-4 lg:py-5' : 'py-8 lg:py-10',
+      state?.gameKey === 'uno.v1' && state.status === 'active' ? 'match-room--uno-active' : ''
+    ]"
   >
     <div
       v-if="loading"
@@ -210,3 +213,17 @@ async function cancelMatch() {
     </template>
   </div>
 </template>
+
+<style scoped>
+.match-room--uno-active {
+  width: 100%;
+  max-width: none;
+  height: calc(100dvh - 4.75rem);
+  overflow: hidden;
+  padding: 0.75rem 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .match-room--uno-active { padding: 0.35rem; }
+}
+</style>

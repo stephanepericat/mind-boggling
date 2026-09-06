@@ -222,15 +222,36 @@ onMounted(() => {
   tableGroup = new Group()
   cardGroup = new Group()
   scene.add(tableGroup, cardGroup)
+  const mountedTableGroup = tableGroup
 
   const tableGeometry = new CircleGeometry(5.6, 72)
-  const tableMaterial = new MeshPhysicalMaterial({ color: 0x11151d, roughness: 0.88, metalness: 0.02 })
+  const tableMaterial = new MeshPhysicalMaterial({ color: 0x0d1821, roughness: 0.92, metalness: 0.02 })
   geometries.push(tableGeometry)
   materials.push(tableMaterial)
   const table = new Mesh(tableGeometry, tableMaterial)
   table.rotation.x = -Math.PI / 2
   table.position.y = -0.03
-  tableGroup.add(table)
+  mountedTableGroup.add(table)
+
+  const rimGeometry = new RingGeometry(5.2, 5.58, 72)
+  const rimMaterial = new MeshPhysicalMaterial({ color: 0x242a32, roughness: 0.42, metalness: 0.28, side: DoubleSide })
+  geometries.push(rimGeometry)
+  materials.push(rimMaterial)
+  const rim = new Mesh(rimGeometry, rimMaterial)
+  rim.rotation.x = -Math.PI / 2
+  rim.position.y = 0.012
+  mountedTableGroup.add(rim)
+
+  Object.values(colorHex).forEach((color, index) => {
+    const geometry = new RingGeometry(2.28, 2.38, 48, 1, index * Math.PI / 2 + 0.04, Math.PI / 2 - 0.08)
+    const material = new MeshStandardMaterial({ color, transparent: true, opacity: 0.48, side: DoubleSide })
+    geometries.push(geometry)
+    materials.push(material)
+    const arc = new Mesh(geometry, material)
+    arc.rotation.x = -Math.PI / 2
+    arc.position.y = 0.045
+    mountedTableGroup.add(arc)
+  })
 
   const ringGeometry = new RingGeometry(1.82, 2.02, 72, 1, 0.28, Math.PI * 1.72)
   const ringMaterial = new MeshStandardMaterial({ color: 0xfff7e6, transparent: true, opacity: 0.82, side: DoubleSide })

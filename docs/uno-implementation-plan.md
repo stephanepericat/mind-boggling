@@ -1,8 +1,21 @@
 # UNO Implementation Plan
 
-Status: planning only. No UNO product code has been written.
+Status: implemented. The server-authoritative game, private projections, setup options, results, semantic controls, and Three.js presentation are in place and covered by the repository test suite.
 
 Confirmed product decisions: classic 108-card deck, 2–8 players, 250/500/1,000-point winning-score options, and server-only Wild Draw Four adjudication without revealing a player's hand.
+
+### Post-implementation tabletop refinement
+
+The first playtest feedback adds these shipped interaction requirements:
+
+- The player's hand is sorted red, yellow, green, blue, then Wild; each color sorts numbers 0–9 before Skip, Reverse, and Draw Two.
+- A responsive compression rail keeps the first and last card visible as the hand grows, while retaining horizontal access for an extreme card count.
+- Playable cards rest above the pack before hover or focus; unavailable cards remain labelled and visually subdued.
+- The active table color now drives a brighter four-color compass, table rim, active seat, and full-table turn beacon.
+- Entering the player's turn plays a short two-note browser-generated cue after the first user interaction. A persistent, local sound control can mute it.
+- Calling UNO produces a visible table callout and toast for everyone. A successful catch produces its own public notification.
+- A vulnerable opponent displays a red Catch control both on their seat and in the action panel. Copy explains that any opponent must use it before the next accepted play or draw.
+- Active UNO play occupies the viewport below the application header. Score details collapse to a horizontal race rail below 1,100px, and chat remains a fixed overlay, so the document does not need to scroll.
 
 ## 1. Outcome
 
@@ -458,7 +471,7 @@ Expected integration edits:
 | “Official rules” drifts into familiar house rules | Version the rules, link the Mattel source in the rules modal, and test that excluded variants are rejected. |
 | Capacity labels or layouts drift from the game manifest | Drive capacity from the manifest and test lobby/table layouts at the full eight seats. |
 | Three.js duplicates state or blocks input | Keep the engine/server authoritative and the semantic DOM complete; derive animation from projected snapshots only. |
-| Large hands or many seats hurt mobile performance | Reuse geometry/textures, cap pixel ratio, render only public/visible card backs, and let the hand scroll rather than shrink. |
+| Large hands or many seats hurt mobile performance | Reuse geometry/textures, cap pixel ratio, render only public/visible card backs, compress card overlap from measured space, and keep horizontal access when a hand exceeds the safe compression floor. |
 | Reconnect replays private or obsolete animation | Reconcile immediately to the latest snapshot and only animate new sequence transitions observed live. |
 | Network disconnects stall a match | Use a 60-second grace period and resolve with legal draw/pass or penalty acceptance behavior. |
 

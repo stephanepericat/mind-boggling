@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createUnoDeck, unoCardPoints } from '../shared/games/uno'
+import { createUnoDeck, sortUnoCards, unoCardPoints } from '../shared/games/uno'
 
 describe('UNO classic deck', () => {
   it('creates the official 108 unique cards', () => {
@@ -26,5 +26,29 @@ describe('UNO classic deck', () => {
     expect(unoCardPoints(deck.find(card => card.id === 'red:7:0')!)).toBe(7)
     expect(unoCardPoints(deck.find(card => card.id === 'blue:skip:0')!)).toBe(20)
     expect(unoCardPoints(deck.find(card => card.id === 'wild:wild:0')!)).toBe(50)
+  })
+
+  it('sorts a hand by color, number, and action', () => {
+    const deck = createUnoDeck()
+    const hand = [
+      deck.find(card => card.id === 'wild:wild:0')!,
+      deck.find(card => card.id === 'blue:2:1')!,
+      deck.find(card => card.id === 'red:skip:0')!,
+      deck.find(card => card.id === 'red:2:1')!,
+      deck.find(card => card.id === 'red:2:0')!,
+      deck.find(card => card.id === 'yellow:0:0')!,
+      deck.find(card => card.id === 'wild:wild-draw-four:0')!
+    ]
+
+    expect(sortUnoCards(hand).map(card => card.id)).toEqual([
+      'red:2:0',
+      'red:2:1',
+      'red:skip:0',
+      'yellow:0:0',
+      'blue:2:1',
+      'wild:wild:0',
+      'wild:wild-draw-four:0'
+    ])
+    expect(hand[0]?.id).toBe('wild:wild:0')
   })
 })
