@@ -18,23 +18,32 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
   const latestChatMessage = shallowRef<ChatMessage | null>(null)
   let socket: WebSocket | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let fallbackPoll: ReturnType<typeof setInterval> | undefined
   let reconnectAttempts = 0
   let disposed = false
 
   const id = computed(() => toValue(matchId))
 
-  async function load() {
-    loading.value = true
+  function acceptSnapshot(snapshot: MatchView) {
+    if (snapshot.id !== id.value) return false
+    if (state.value?.id === snapshot.id && state.value.sequence > snapshot.sequence) return false
+    state.value = snapshot
+    return true
+  }
+
+  async function load(showLoading = true) {
+    if (showLoading) loading.value = true
     try {
       const response = await $fetch<SnapshotResponse>(`/api/matches/${id.value}`)
-      state.value = response.state
-      serverOffset.value = response.serverTime - Date.now()
-      chatMessages.value = response.chatMessages ?? []
-      error.value = null
+      if (acceptSnapshot(response.state)) {
+        serverOffset.value = response.serverTime - Date.now()
+        chatMessages.value = response.chatMessages ?? []
+        if (showLoading) error.value = null
+      }
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : 'Unable to load this match.'
+      if (showLoading) error.value = caught instanceof Error ? caught.message : 'Unable to load this match.'
     } finally {
-      loading.value = false
+      if (showLoading) loading.value = false
     }
   }
 
@@ -52,12 +61,15 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
     if (!import.meta.client || disposed) return
     socket?.close()
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    socket = new WebSocket(`${protocol}//${window.location.host}/api/matches/${id.value}/socket`)
-    socket.addEventListener('open', () => {
+    const current = new WebSocket(`${protocol}//${window.location.host}/api/matches/${id.value}/socket`)
+    socket = current
+    current.addEventListener('open', () => {
+      if (socket !== current) return
       connected.value = true
       reconnectAttempts = 0
     })
-    socket.addEventListener('message', (message) => {
+    current.addEventListener('message', (message) => {
+      if (socket !== current) return
       try {
         const envelope = JSON.parse(String(message.data)) as RealtimeEnvelope
         receiveEnvelope(envelope)
@@ -65,17 +77,19 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
         error.value = 'A realtime update could not be read.'
       }
     })
-    socket.addEventListener('close', () => {
+    current.addEventListener('close', () => {
+      if (socket !== current) return
       connected.value = false
       scheduleReconnect()
     })
-    socket.addEventListener('error', () => {
+    current.addEventListener('error', () => {
+      if (socket !== current) return
       connected.value = false
     })
   }
 
   function receiveEnvelope(envelope: RealtimeEnvelope) {
-    if (envelope.type === 'state.snapshot') state.value = envelope.payload as MatchView
+    if (envelope.type === 'state.snapshot') acceptSnapshot(envelope.payload as MatchView)
     if (envelope.type === 'chat.history') {
       chatMessages.value = (envelope.payload as { messages: ChatMessage[] }).messages
     }
@@ -98,8 +112,12 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
       socket.send(JSON.stringify(command))
       return
     }
-    await $fetch(`/api/matches/${id.value}/command`, { method: 'POST', body: command })
-    await load()
+    const holdemRoom = state.value?.gameKey === 'texas-holdem.v1'
+    await $fetch(`/api/matches/${id.value}/command`, { method: 'POST', body: command }).catch(async (caught) => {
+      if (holdemRoom) await load(false)
+      throw caught
+    })
+    await load(!holdemRoom)
   }
 
   async function sendChat(text: string) {
@@ -134,11 +152,15 @@ export function useMatchRealtime(matchId: MaybeRefOrGetter<string>) {
   onMounted(async () => {
     await load()
     connect()
+    fallbackPoll = setInterval(() => {
+      if (!connected.value && state.value?.gameKey === 'texas-holdem.v1' && state.value.status === 'active') void load(false)
+    }, 2000)
   })
 
   onScopeDispose(() => {
     disposed = true
     if (reconnectTimer) clearTimeout(reconnectTimer)
+    clearInterval(fallbackPoll)
     socket?.close()
   })
 

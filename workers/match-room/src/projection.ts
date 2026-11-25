@@ -1,4 +1,5 @@
 import { currentScoringOptions, FARKLE_RULES } from '../../../shared/games/farkle'
+import { projectHoldem } from '../../../shared/games/texas-holdem/engine'
 import { getUnoCard, playableUnoCardIds, unoBlockingMemberId, UNO_RULES } from '../../../shared/games/uno'
 import type { MatchMemberView, MatchView } from '../../../shared/types/api'
 import type { RoomState } from './types'
@@ -105,6 +106,15 @@ export function projectRoomState(
           skipEligibleAt: authorizedToSkip ? skipEligibleAt : undefined
         }
       }
+    }
+  }
+
+  if (state.game.key === 'texas-holdem.v1') {
+    return {
+      ...base,
+      gameKey: 'texas-holdem.v1',
+      members: commonMembers(state, connectedMemberIds),
+      game: { key: state.game.key, settings: state.game.settings, view: projectHoldem(state.game.state, state.game.settings, viewerMemberId) }
     }
   }
 

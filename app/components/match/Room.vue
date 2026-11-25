@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { UnoCommand } from '#shared/games/uno'
+import type { HoldemDecision } from '#shared/games/texas-holdem'
 
 type WithoutIdempotency<T> = T extends { idempotencyKey: string } ? Omit<T, 'idempotencyKey'> : never
 
@@ -74,6 +75,14 @@ async function skipFarkle(memberId: string) {
 
 async function sendUno(value: WithoutIdempotency<UnoCommand>) {
   await send(command(value))
+}
+
+async function sendHoldem(decision: HoldemDecision) {
+  try {
+    await send(command({ type: 'texas-holdem.act', ...decision }))
+  } catch {
+    toast.add({ title: 'Action could not be confirmed', description: 'Check the table before trying again.', color: 'warning' })
+  }
 }
 
 async function continueUnoRound() {
@@ -175,6 +184,13 @@ async function cancelMatch() {
         :connected="connected"
         @command="sendUno"
       />
+      <TexasHoldemTable
+        v-else-if="state.gameKey === 'texas-holdem.v1' && (state.status === 'active' || state.status === 'finished')"
+        :match="state"
+        :server-offset="serverOffset"
+        :connected="connected"
+        @action="sendHoldem"
+      />
       <BoggleRoundResults
         v-else-if="state.gameKey === 'boggle.v1' && state.status === 'round_results'"
         :match="state"
@@ -186,7 +202,7 @@ async function cancelMatch() {
         @continue="continueUnoRound"
       />
       <MatchFinalResults
-        v-else-if="state.status === 'finished'"
+        v-else-if="state.status === 'finished' && state.gameKey !== 'texas-holdem.v1'"
         :match="state"
       />
       <UAlert

@@ -1,5 +1,6 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore, WordSubmission } from '../../../shared/games/boggle'
 import type { FarkleSettings, FarkleState } from '../../../shared/games/farkle'
+import type { HoldemSettings, HoldemState } from '../../../shared/games/texas-holdem'
 import type { UnoSettings, UnoState } from '../../../shared/games/uno'
 import type { ChatMessage } from '../../../shared/platform/chat'
 import type { MatchStatus, MatchView } from '../../../shared/types/api'
@@ -15,6 +16,7 @@ export interface RoomMember {
 export interface MemberPresence {
   lastActivityAt: number
   disconnectedAt?: number
+  lastHttpActivityAt?: number
 }
 
 export interface BoggleRoomGameState {
@@ -44,6 +46,12 @@ export interface UnoRoomGameState {
   state: UnoState | null
 }
 
+export interface HoldemRoomGameState {
+  key: 'texas-holdem.v1'
+  settings: HoldemSettings
+  state: HoldemState | null
+}
+
 export interface RoomState {
   stateVersion: 2
   id: string
@@ -53,15 +61,15 @@ export interface RoomState {
   members: RoomMember[]
   sequence: number
   presence: Record<string, MemberPresence>
-  game: BoggleRoomGameState | FarkleRoomGameState | UnoRoomGameState
+  game: BoggleRoomGameState | FarkleRoomGameState | UnoRoomGameState | HoldemRoomGameState
 }
 
 export interface InitializeRoomInput {
   state: {
     id: string
     name: string
-    gameKey: 'boggle.v1' | 'farkle.v1' | 'uno.v1'
-    settings: BoggleSettings | FarkleSettings | UnoSettings
+    gameKey: RoomState['game']['key']
+    settings: RoomState['game']['settings']
     hostMemberId: string
     members: RoomMember[]
   }

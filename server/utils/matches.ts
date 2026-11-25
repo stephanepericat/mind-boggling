@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { boggleSettingsSchema } from '../../shared/games/boggle'
 import { farkleSettingsSchema } from '../../shared/games/farkle'
+import { holdemSettingsSchema } from '../../shared/games/texas-holdem/schema'
 import { unoSettingsSchema } from '../../shared/games/uno'
 import { getGameManifest } from '../../shared/games/registry'
 import type { GameKey } from '../../shared/games/contract'
@@ -45,15 +46,19 @@ interface InviteIntentRow {
 export async function createMatch(
   event: H3Event,
   actor: Actor,
-  input: { gameKey: 'boggle.v1' | 'farkle.v1' | 'uno.v1', name: string, settings: unknown }
+  input: { gameKey: GameKey, name: string, settings: unknown }
 ): Promise<{ matchId: string, inviteUrl: string }> {
   const manifest = getGameManifest(input.gameKey)
   if (!manifest) throw createError({ statusCode: 422, statusMessage: 'That game is not available.' })
-  const settings = input.gameKey === 'boggle.v1'
-    ? boggleSettingsSchema.parse(input.settings)
-    : input.gameKey === 'farkle.v1'
-      ? farkleSettingsSchema.parse(input.settings)
-      : unoSettingsSchema.parse(input.settings)
+  const schemas = {
+    'boggle.v1': boggleSettingsSchema,
+    'farkle.v1': farkleSettingsSchema,
+    'uno.v1': unoSettingsSchema,
+    'texas-holdem.v1': holdemSettingsSchema
+  } as const
+  const parsed = schemas[input.gameKey as keyof typeof schemas]?.safeParse(input.settings)
+  if (!parsed?.success) throw createError({ statusCode: 422, statusMessage: 'Check the match settings and try again.' })
+  const settings = parsed.data
   const name = input.name.normalize('NFKC').trim().replace(/\s+/g, ' ')
   if (name.length < 2 || name.length > 48) {
     throw createError({ statusCode: 422, statusMessage: 'Match name must be between 2 and 48 characters.' })
@@ -247,10 +252,13 @@ export async function revokeInvites(event: H3Event, matchId: string, member: Mem
 
 export async function getHistory(event: H3Event, clerkUserId: string): Promise<MatchHistoryItem[]> {
   const rows = await getBindings(event).DB.prepare(`
-    SELECT match_id, match_name, game_key, completed_at, placement, score, participants_json
-    FROM player_match_summaries
-    WHERE clerk_user_id = ?1
-    ORDER BY completed_at DESC
+    SELECT summary.match_id, summary.match_name, summary.game_key, summary.completed_at, summary.placement,
+      summary.score, summary.participants_json,
+      CASE WHEN summary.game_key = 'texas-holdem.v1' THEN json_extract(matches.settings_json, '$.format') END AS holdem_format
+    FROM player_match_summaries AS summary
+    JOIN matches ON matches.id = summary.match_id
+    WHERE summary.clerk_user_id = ?1
+    ORDER BY summary.completed_at DESC
     LIMIT 50
   `).bind(clerkUserId).all<{
     match_id: string
@@ -260,6 +268,7 @@ export async function getHistory(event: H3Event, clerkUserId: string): Promise<M
     placement: number
     score: number
     participants_json: string
+    holdem_format: MatchHistoryItem['holdemFormat'] | null
   }>()
   return rows.results.map(row => ({
     matchId: row.match_id,
@@ -268,6 +277,7 @@ export async function getHistory(event: H3Event, clerkUserId: string): Promise<M
     completedAt: row.completed_at,
     placement: row.placement,
     score: row.score,
-    participants: JSON.parse(row.participants_json) as string[]
+    participants: JSON.parse(row.participants_json) as string[],
+    ...(row.holdem_format ? { holdemFormat: row.holdem_format } : {})
   }))
 }

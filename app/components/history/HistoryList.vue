@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { sortMatchHistory } from '../../utils/matchHistory'
+import { holdemFormatLabels } from '#shared/games/texas-holdem/rules'
 import type { MatchHistorySort } from '../../utils/matchHistory'
 
 const { data, status, error, refresh } = await useMatchHistory('/api/history')
@@ -83,14 +84,14 @@ function placement(value: number): string {
         :to="`/matches/${match.matchId}`"
         class="grid gap-4 border-b border-slate-200 px-6 py-5 last:border-0 hover:bg-slate-50 sm:grid-cols-[1.2fr_1fr_8rem_8rem] sm:items-center"
       >
-        <div><p class="font-display text-lg font-bold">{{ match.matchName }}</p><p class="mt-1 text-xs text-slate-500">{{ match.gameName }} · {{ formatter.format(new Date(match.completedAt)) }}</p></div>
+        <div><p class="font-display text-lg font-bold">{{ match.matchName }}</p><p class="mt-1 text-xs text-slate-500">{{ match.gameName }} · {{ match.holdemFormat ? holdemFormatLabels[match.holdemFormat] + ' · ' : '' }}{{ formatter.format(new Date(match.completedAt)) }}</p></div>
         <p class="truncate text-sm text-slate-600">{{ match.participants.join(', ') }}</p>
         <UBadge
           :color="match.placement === 1 ? 'primary' : 'neutral'"
           variant="soft"
           class="w-fit"
         >{{ placement(match.placement) }}</UBadge>
-        <p class="font-mono text-xl font-black sm:text-right">{{ match.score }} <small class="text-xs font-medium text-slate-400">pts</small></p>
+        <p class="font-mono text-xl font-black sm:text-right">{{ match.score }} <small class="text-xs font-medium text-slate-400">{{ match.holdemFormat ? 'chips' : 'pts' }}</small></p>
       </NuxtLink>
     </div>
     <div

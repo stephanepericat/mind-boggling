@@ -1,5 +1,6 @@
 import type { BoggleBoard, BoggleSettings, MemberRoundScore } from '../games/boggle'
 import type { FarklePlayerView, FarkleSettings } from '../games/farkle'
+import type { HoldemFormat, HoldemPlayerView, HoldemSettings } from '../games/texas-holdem'
 import type { UnoPlayerView, UnoSettings } from '../games/uno'
 import type { GameKey } from '../games/contract'
 
@@ -51,7 +52,12 @@ export interface UnoMatchView extends PlatformMatchView {
   game: { key: 'uno.v1', settings: UnoSettings, view: UnoPlayerView }
 }
 
-export type MatchView = BoggleMatchView | FarkleMatchView | UnoMatchView
+export interface HoldemMatchView extends PlatformMatchView {
+  gameKey: 'texas-holdem.v1'
+  game: { key: 'texas-holdem.v1', settings: HoldemSettings, view: HoldemPlayerView }
+}
+
+export type MatchView = BoggleMatchView | FarkleMatchView | UnoMatchView | HoldemMatchView
 
 export interface MatchHistoryItem {
   matchId: string
@@ -61,6 +67,7 @@ export interface MatchHistoryItem {
   placement: number
   score: number
   participants: string[]
+  holdemFormat?: HoldemFormat
 }
 
 export interface LeaderboardGameOption {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getGameManifest } from '#shared/games/registry'
+import { holdemFormatLabels, HOLDEM_RULES } from '#shared/games/texas-holdem/rules'
 import type { MatchView } from '../../../shared/types/api'
 import { getBoggleBoardColorOption } from '../../utils/boggleBoardColor'
 import { getFarkleDiceColorOption } from '../../utils/diceAppearance'
@@ -282,6 +283,33 @@ async function revokeInvite() {
           </dd>
         </div>
       </dl>
+      <div
+        v-else-if="match.gameKey === 'texas-holdem.v1'"
+        class="mt-5 space-y-4 border-t border-slate-200 pt-5"
+      >
+        <dl class="space-y-2 text-sm">
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">
+              Match format
+            </dt>
+            <dd class="font-semibold">
+              {{ holdemFormatLabels[match.game.settings.format] }}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">
+              Starting stack
+            </dt>
+            <dd class="font-semibold">
+              {{ HOLDEM_RULES.startingStack.toLocaleString('en-US') }} chips
+            </dd>
+          </div>
+        </dl>
+        <p class="text-sm text-slate-600">
+          {{ match.game.settings.format === 'fixed-hands' ? 'Fixed blinds. The biggest stack wins after 12 hands.' : 'Blinds rise until one player has all the chips.' }}
+        </p>
+        <TexasHoldemRulesModal />
+      </div>
       <dl
         v-else
         class="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm"
