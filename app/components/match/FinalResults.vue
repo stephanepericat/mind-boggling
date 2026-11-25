@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MatchView } from '../../../shared/types/api'
 
-const props = defineProps<{ match: MatchView }>()
+const props = defineProps<{ match: Exclude<MatchView, { gameKey: 'texas-holdem.v1' }> }>()
 const winner = computed(() => [...props.match.members].sort((left, right) => (right.cumulativeScore ?? 0) - (left.cumulativeScore ?? 0))[0])
 const playAgainPath = computed(() => `/games/${props.match.gameKey.replace('.v1', '')}/new`)
 const resultCopy = computed(() => {

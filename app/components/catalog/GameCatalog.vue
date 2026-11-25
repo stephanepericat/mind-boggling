@@ -3,6 +3,7 @@ import type { GameManifest } from '../../../shared/games/contract'
 
 const { data, status, error } = await useFetch<{ games: GameManifest[] }>('/api/catalog')
 const { data: history } = await useMatchHistory('/api/history')
+const holdemPreview = ['As', 'Kh', 'Qs'] as const
 </script>
 
 <template>
@@ -76,6 +77,7 @@ const { data: history } = await useMatchHistory('/api/history')
       >
         <div
           class="hidden bg-primary-600 xl:order-2 xl:col-span-2 xl:grid xl:place-items-center"
+          :class="game.key === 'texas-holdem.v1' && 'catalog-holdem'"
           aria-hidden="true"
         >
           <div
@@ -97,6 +99,16 @@ const { data: history } = await useMatchHistory('/api/history')
               :key="face"
               class="grid size-14 place-items-center rounded-xl bg-white font-mono text-2xl font-black text-primary-700 shadow-lg"
             >{{ face }}</span>
+          </div>
+          <div
+            v-else-if="game.key === 'texas-holdem.v1'"
+            class="catalog-holdem__cards"
+          >
+            <TexasHoldemCard
+              v-for="card in holdemPreview"
+              :key="card"
+              :value="card"
+            />
           </div>
           <div
             v-else
@@ -199,3 +211,11 @@ const { data: history } = await useMatchHistory('/api/history')
     </section>
   </div>
 </template>
+
+<style scoped>
+.catalog-holdem { background: radial-gradient(ellipse, #316750, #163a38 70%, #142f39); }
+.catalog-holdem__cards { --holdem-card-size: 3.45rem; display: flex; }
+.catalog-holdem__cards .playing-card + .playing-card { margin-left: -0.7rem; }
+.catalog-holdem__cards .playing-card:first-child { transform: translateY(0.35rem) rotate(-15deg); }
+.catalog-holdem__cards .playing-card:last-child { transform: translateY(0.28rem) rotate(14deg); }
+</style>

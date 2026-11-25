@@ -1,12 +1,14 @@
 import { boggleManifest } from './boggle'
 import { farkleManifest } from './farkle'
+import { holdemManifest } from './texas-holdem/rules'
 import { unoManifest } from './uno'
 import type { GameKey, GameManifest } from './contract'
 
 export const gameRegistry = new Map<GameKey, GameManifest>([
   [boggleManifest.key, boggleManifest],
   [farkleManifest.key, farkleManifest],
-  [unoManifest.key, unoManifest]
+  [unoManifest.key, unoManifest],
+  [holdemManifest.key, holdemManifest]
 ])
 
 export function getGameManifest(key: string): GameManifest | undefined {

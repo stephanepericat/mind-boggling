@@ -28,6 +28,10 @@ import {
 } from '../../../shared/games/farkle'
 import type { FarkleCommand, FarkleSettings } from '../../../shared/games/farkle'
 import {
+  actHoldem, createHoldemDeck, createHoldemState, dealNextHoldemHand, expireHoldemTurn, holdemCommandSchema, HOLDEM_RULES
+} from '../../../shared/games/texas-holdem'
+import type { HoldemCommand, HoldemSettings } from '../../../shared/games/texas-holdem'
+import {
   callUno,
   catchUno,
   chooseUnoDealer,
@@ -51,6 +55,7 @@ import { platformMatchCommandSchema } from '../../../shared/platform/match'
 import type { PlatformMatchCommand } from '../../../shared/platform/match'
 import type { MatchView, RealtimeEnvelope } from '../../../shared/types/api'
 import { shuffle } from '../../../shared/random/shuffle'
+import { uniformIndex } from '../../../shared/random/uniform'
 import { projectRoomState } from './projection'
 import { WebCryptoRandomSource } from './random'
 import type {
@@ -61,7 +66,7 @@ import type {
   RoomState
 } from './types'
 
-type RoomCommand = PlatformMatchCommand | BoggleCommand | FarkleCommand | UnoCommand
+type RoomCommand = PlatformMatchCommand | BoggleCommand | FarkleCommand | UnoCommand | HoldemCommand
 
 type ChatMessageRow = {
   id: number
@@ -110,7 +115,7 @@ function isVersionedRoomState(value: unknown): value is RoomState {
     && typeof value.id === 'string'
     && Array.isArray(value.members)
     && isRecord(value.game)
-    && (value.game.key === 'boggle.v1' || value.game.key === 'farkle.v1' || value.game.key === 'uno.v1')
+    && (value.game.key === 'boggle.v1' || value.game.key === 'farkle.v1' || value.game.key === 'uno.v1' || value.game.key === 'texas-holdem.v1')
 }
 
 function isLegacyBoggleRoomState(value: unknown): value is LegacyBoggleRoomState {
@@ -154,6 +159,7 @@ function migrateLegacyState(legacy: LegacyBoggleRoomState): RoomState {
 
 export class MatchRoom extends DurableObject<Cloudflare.Env> {
   private readonly random = new WebCryptoRandomSource()
+  private holdemLobbyMutation = false
 
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env)
@@ -200,6 +206,10 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     if (!state) return
     if (state.status === 'finished') {
       await this.persistFinalization(state)
+      return
+    }
+    if (state.game.key === 'texas-holdem.v1') {
+      await this.advanceHoldemAlarm(state)
       return
     }
     if (state.game.key !== 'boggle.v1') return
@@ -274,6 +284,11 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
         ...common,
         game: { key: 'farkle.v1', settings: input.state.settings as FarkleSettings, state: null }
       }
+    } else if (input.state.gameKey === 'texas-holdem.v1') {
+      state = {
+        ...common,
+        game: { key: 'texas-holdem.v1', settings: input.state.settings as HoldemSettings, state: null }
+      }
     } else {
       state = {
         ...common,
@@ -286,7 +301,9 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
 
   private upsertMember(member: RoomMember): Response {
     const state = this.requireState()
-    if (state.status !== 'lobby') return json({ error: 'match_already_started' }, 409)
+    if (state.status !== 'lobby' || (state.game.key === 'texas-holdem.v1' && this.holdemLobbyMutation)) {
+      return json({ error: 'match_already_started' }, 409)
+    }
     const existing = state.members.find(item => item.id === member.id)
     if (existing) Object.assign(existing, member)
     else state.members.push(member)
@@ -301,8 +318,11 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     if (!memberId) return json({ error: 'unauthorized' }, 401)
     const state = this.requireState()
     if (!state.members.some(member => member.id === memberId)) return json({ error: 'forbidden' }, 403)
-    this.touchActivity(state, memberId, Date.now())
+    const now = Date.now()
+    this.touchActivity(state, memberId, now, true)
+    const resumed = this.resumeHoldem(state, now)
     this.writeState(state)
+    if (resumed) this.broadcastSnapshots(state)
     const response: RoomSnapshotResponse = {
       state: this.project(state, memberId),
       serverTime: Date.now(),
@@ -327,6 +347,7 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     server.serializeAttachment({ memberId, connectedAt: now } satisfies ConnectionAttachment)
     state.presence[memberId] = { lastActivityAt: now }
     state.sequence += 1
+    this.resumeHoldem(state, now)
     this.writeState(state)
     server.send(JSON.stringify(this.envelope(state, 'state.snapshot', this.project(state, memberId))))
     server.send(JSON.stringify(this.envelope(state, 'chat.history', { messages: this.readChatMessages() })))
@@ -337,16 +358,19 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
   private async handleMessage(memberId: string, body: unknown, sourceSocket?: WebSocket): Promise<RealtimeEnvelope> {
     const state = this.requireState()
     if (!state.members.some(member => member.id === memberId)) return this.envelope(state, 'error', { code: 'forbidden' })
-    this.touchActivity(state, memberId, Date.now())
+    this.touchActivity(state, memberId, Date.now(), !sourceSocket)
     this.writeState(state)
     const parsedChat = chatSendSchema.safeParse(body)
     if (parsedChat.success) return this.handleChatMessage(state, memberId, parsedChat.data, sourceSocket)
     return this.handleCommand(state, memberId, body)
   }
 
-  private touchActivity(state: RoomState, memberId: string, now: number): void {
+  private touchActivity(state: RoomState, memberId: string, now: number, fromHttp = false): void {
     const connected = this.ctx.getWebSockets(memberId).some(socket => socket.readyState === WebSocket.OPEN)
-    state.presence[memberId] = connected ? { lastActivityAt: now } : { lastActivityAt: now, disconnectedAt: now }
+    const presence = connected ? { lastActivityAt: now } : { lastActivityAt: now, disconnectedAt: now }
+    state.presence[memberId] = state.game.key === 'texas-holdem.v1'
+      ? { ...presence, lastHttpActivityAt: fromHttp ? now : state.presence[memberId]?.lastHttpActivityAt }
+      : presence
   }
 
   private handleChatMessage(state: RoomState, memberId: string, command: ChatSendCommand, sourceSocket?: WebSocket): RealtimeEnvelope {
@@ -385,6 +409,10 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       const farkle = farkleCommandSchema.safeParse(body)
       return farkle.success ? farkle.data : null
     }
+    if (state.game.key === 'texas-holdem.v1') {
+      const holdem = holdemCommandSchema.safeParse(body)
+      return holdem.success ? holdem.data : null
+    }
     const uno = unoCommandSchema.safeParse(body)
     return uno.success ? uno.data : null
   }
@@ -397,6 +425,11 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       command.idempotencyKey
     ).toArray()[0]
     if (alreadyProcessed) return this.envelope(state, 'command.acknowledged', { duplicate: true })
+
+    if (state.game.key === 'texas-holdem.v1') {
+      if (command.type === 'texas-holdem.act') return this.handleHoldemAction(state, memberId, command)
+      return this.handleHoldemLobbyCommand(state, memberId, command as PlatformMatchCommand)
+    }
 
     const errorCode = command.type.startsWith('boggle.') || command.type.startsWith('farkle.') || command.type.startsWith('uno.')
       ? await this.applyGameCommand(state, memberId, command as BoggleCommand | FarkleCommand | UnoCommand)
@@ -434,7 +467,8 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       ])
       if (state.game.key === 'boggle.v1') await this.startBoggleRound(state, 1)
       else if (state.game.key === 'farkle.v1') this.startFarkle(state)
-      else this.startUno(state)
+      else if (state.game.key === 'uno.v1') this.startUno(state)
+      else this.startHoldem(state)
       return null
     }
     if (command.type === 'match.cancel') {
@@ -476,6 +510,102 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
     if (state.game.key === 'boggle.v1') return this.applyBoggleCommand(state, memberId, command as BoggleCommand)
     if (state.game.key === 'farkle.v1') return this.applyFarkleCommand(state, memberId, command as FarkleCommand)
     return this.applyUnoCommand(state, memberId, command as UnoCommand)
+  }
+
+  private async handleHoldemLobbyCommand(state: RoomState, memberId: string, command: PlatformMatchCommand) {
+    if (state.status !== 'lobby') return this.envelope(state, 'error', { code: 'invalid_state' })
+    if (this.holdemLobbyMutation) return this.envelope(state, 'error', { code: 'lobby_update_in_progress' })
+    this.holdemLobbyMutation = true
+    try {
+      const error = await this.applyPlatformCommand(state, memberId, command)
+      if (error) return this.envelope(state, 'error', { code: error })
+      const current = this.requireState()
+      state.sequence = current.sequence
+      state.presence = Object.fromEntries(state.members.map(member => [member.id, current.presence[member.id]!]))
+      await this.commitHoldem(state, command.idempotencyKey)
+      return this.envelope(state, 'command.acknowledged', { duplicate: false })
+    } finally {
+      this.holdemLobbyMutation = false
+    }
+  }
+
+  private startHoldem(state: RoomState) {
+    if (state.game.key !== 'texas-holdem.v1') return
+    state.game.state = createHoldemState(
+      state.members.map(member => member.id),
+      state.game.settings,
+      uniformIndex(this.random, state.members.length),
+      shuffle(createHoldemDeck(), this.random),
+      Date.now()
+    )
+    state.status = 'active'
+  }
+
+  private async handleHoldemAction(state: RoomState, memberId: string, command: HoldemCommand) {
+    if (state.game.key !== 'texas-holdem.v1' || state.status !== 'active' || !state.game.state) {
+      return this.envelope(state, 'error', { code: 'invalid_state' })
+    }
+    const now = Date.now()
+    const expired = expireHoldemTurn(state.game.state, state.game.settings, now)
+    if (expired !== state.game.state) {
+      state.game.state = expired
+      await this.commitHoldem(state)
+      return this.envelope(state, 'error', { code: 'turn_expired' })
+    }
+    const result = actHoldem(state.game.state, state.game.settings, memberId, command, now)
+    if (!result.state) return this.envelope(state, 'error', { code: result.error })
+    state.game.state = result.state
+    await this.commitHoldem(state, command.idempotencyKey)
+    return this.envelope(state, 'command.acknowledged', { duplicate: false })
+  }
+
+  private resumeHoldem(state: RoomState, now: number) {
+    if (state.game.key !== 'texas-holdem.v1' || state.status !== 'active') return false
+    const game = state.game.state
+    if (!game || game.hand.turn || game.nextDealAt !== undefined) return false
+    game.nextDealAt = now + HOLDEM_RULES.intermissionMs
+    state.sequence += 1
+    this.ctx.waitUntil(this.ctx.storage.setAlarm(game.nextDealAt))
+    return true
+  }
+
+  private async advanceHoldemAlarm(state: RoomState) {
+    if (state.game.key !== 'texas-holdem.v1' || state.status !== 'active' || !state.game.state) return
+    const game = state.game.state
+    const dueAt = game.hand.turn?.deadline ?? game.nextDealAt
+    if (dueAt === undefined) return
+    const now = Date.now()
+    if (now < dueAt) {
+      await this.ctx.storage.setAlarm(dueAt)
+      return
+    }
+    if (game.hand.turn) {
+      state.game.state = expireHoldemTurn(game, state.game.settings, now)
+    } else if (state.members.some(member => this.isConnected(member.id)
+      || (state.presence[member.id]?.lastHttpActivityAt ?? 0) > now - HOLDEM_RULES.intermissionMs)) {
+      state.game.state = dealNextHoldemHand(game, state.game.settings, shuffle(createHoldemDeck(), this.random), now)
+    } else {
+      game.nextDealAt = undefined
+    }
+    await this.commitHoldem(state)
+  }
+
+  private async commitHoldem(state: RoomState, idempotencyKey?: string) {
+    if (state.game.key !== 'texas-holdem.v1') return
+    const game = state.game.state
+    if (game?.finishedAt !== undefined) state.status = 'finished'
+    state.sequence += 1
+    this.ctx.storage.transactionSync(() => {
+      if (idempotencyKey) {
+        this.ctx.storage.sql.exec('INSERT INTO processed_commands (idempotency_key, processed_at) VALUES (?, ?)', idempotencyKey, Date.now())
+      }
+      this.writeState(state)
+    })
+    const dueAt = state.status === 'finished' ? Date.now() + 30_000 : game?.hand.turn?.deadline ?? game?.nextDealAt
+    const scheduled = dueAt !== undefined ? this.ctx.storage.setAlarm(dueAt) : this.ctx.storage.deleteAlarm()
+    this.broadcastSnapshots(state)
+    await scheduled
+    if (state.status === 'finished') await this.persistFinalization(state)
   }
 
   private async applyBoggleCommand(state: RoomState, memberId: string, command: BoggleCommand): Promise<string | null> {
@@ -697,11 +827,15 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
   }
 
   private scoresFor(state: RoomState): Record<string, number> {
+    if (state.game.key === 'texas-holdem.v1') return Object.fromEntries(state.game.state?.seats.map(seat => [seat.memberId, seat.stack]) ?? [])
     return state.game.key === 'boggle.v1' ? state.game.state.cumulativeScores : state.game.state?.scores ?? {}
   }
 
   private finalPayload(state: RoomState): Record<string, unknown> {
     if (state.game.key === 'boggle.v1') return { rounds: state.game.state.currentRound }
+    if (state.game.key === 'texas-holdem.v1') {
+      return { rulesVersion: state.game.settings.rulesVersion, format: state.game.settings.format, hands: state.game.state?.completedHands ?? 0 }
+    }
     if (state.game.key === 'uno.v1') {
       const game = state.game.state
       return {
@@ -725,8 +859,11 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
 
   private async persistFinalization(state: RoomState): Promise<void> {
     const scores = this.scoresFor(state)
-    const finalizedAt = new Date().toISOString()
-    const ranked = [...state.members].sort((left, right) => (scores[right.id] ?? 0) - (scores[left.id] ?? 0) || left.displayName.localeCompare(right.displayName))
+    const holdem = state.game.key === 'texas-holdem.v1' ? state.game.state : null
+    const finalizedAt = new Date(holdem?.finishedAt ?? Date.now()).toISOString()
+    const placements = new Map(holdem?.seats.map(seat => [seat.memberId, seat.placement]))
+    const ranked = [...state.members].sort((left, right) => (placements.get(left.id) ?? 0) - (placements.get(right.id) ?? 0)
+      || (scores[right.id] ?? 0) - (scores[left.id] ?? 0) || left.displayName.localeCompare(right.displayName))
     const idempotencyKey = `match:${state.id}:final`
     this.ctx.storage.sql.exec(
       'INSERT OR IGNORE INTO finalization_outbox (idempotency_key, payload_json) VALUES (?, ?)',
@@ -744,19 +881,20 @@ export class MatchRoom extends DurableObject<Cloudflare.Env> {
       const score = scores[member.id] ?? 0
       if (score !== previousScore) rank = index + 1
       previousScore = score
+      const placement = placements.get(member.id) ?? rank
       statements.push(
         this.env.DB.prepare(`
           INSERT INTO score_projections (idempotency_key, match_id, member_id, score, rank, payload_json, finalized_at)
           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
           ON CONFLICT(match_id, member_id) DO UPDATE SET score = excluded.score, rank = excluded.rank,
             payload_json = excluded.payload_json, finalized_at = excluded.finalized_at
-        `).bind(`${idempotencyKey}:${member.id}`, state.id, member.id, score, rank, JSON.stringify(summary), finalizedAt),
+        `).bind(`${idempotencyKey}:${member.id}`, state.id, member.id, score, placement, JSON.stringify(summary), finalizedAt),
         this.env.DB.prepare(`
           INSERT INTO player_match_summaries (match_id, clerk_user_id, match_name, game_key, placement, score, participants_json, completed_at)
           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
           ON CONFLICT(match_id, clerk_user_id) DO UPDATE SET placement = excluded.placement, score = excluded.score,
             participants_json = excluded.participants_json, completed_at = excluded.completed_at
-        `).bind(state.id, member.clerkUserId, state.name, state.game.key, rank, score, JSON.stringify(participantNames), finalizedAt)
+        `).bind(state.id, member.clerkUserId, state.name, state.game.key, placement, score, JSON.stringify(participantNames), finalizedAt)
       )
     })
     try {

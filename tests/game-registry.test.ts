@@ -6,7 +6,8 @@ describe('game registry', () => {
     expect(getGameOptions()).toEqual([
       { key: 'boggle.v1', name: 'Boggle' },
       { key: 'farkle.v1', name: 'Farkle' },
-      { key: 'uno.v1', name: 'UNO' }
+      { key: 'uno.v1', name: 'UNO' },
+      { key: 'texas-holdem.v1', name: 'Texas Hold’em' }
     ])
   })
 

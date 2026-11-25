@@ -8,12 +8,12 @@ export default defineEventHandler(async (event) => {
   const requestedGameKey = getQuery(event).gameKey
   const gameKey = typeof requestedGameKey === 'string' ? requestedGameKey : boggleManifest.key
   const game = getGameManifest(gameKey)
-  if (!game) {
+  if (!game || game.key === 'texas-holdem.v1') {
     throw createError({ statusCode: 422, statusMessage: 'Choose a supported game.' })
   }
 
   return {
-    games: getGameOptions(),
+    games: getGameOptions().filter(option => option.key !== 'texas-holdem.v1'),
     selectedGameKey: game.key,
     entries: await getAllTimeBest(event, game.key)
   }
